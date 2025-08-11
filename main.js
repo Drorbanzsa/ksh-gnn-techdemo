@@ -13,7 +13,6 @@ const ICON_SCALE_Z  = 0.003;  // ikon vastagság
 
 const toXY = (lon, lat, z=0) => [ (lon-OX)*SX, (lat-OY)*SY, z ];
 function lonLatOfFeature(f){
-  // elsődlegesen a GeoJSON-ból jövő centroidot használjuk
   const p = f.properties || {};
   if (p.cx!=null && p.cy!=null) return [p.cx, p.cy];
 
@@ -60,28 +59,19 @@ scene.add(dir);
 /* -------------------- UI: TOOLTIP + LEGENDA STÍLUS -------------------- */
 ensureUI();
 function ensureUI(){
-  // tooltip fallback (ha véletlen hiányozna)
   if(!document.getElementById('tooltip')){
     const t = document.createElement('div');
     t.id = 'tooltip';
-    t.style.position = 'fixed';
-    t.style.display  = 'none';
-    t.style.pointerEvents = 'none';
-    t.style.background = 'rgba(0,0,0,.8)';
-    t.style.color = '#fff';
-    t.style.padding = '.35rem .5rem';
-    t.style.font = '13px/1.35 system-ui,Segoe UI,Inter,Arial';
-    t.style.borderRadius = '.4rem';
-    t.style.zIndex = '1001';
+    Object.assign(t.style,{
+      position:'fixed',display:'none',pointerEvents:'none',
+      background:'rgba(0,0,0,.8)',color:'#fff',padding:'.35rem .5rem',
+      font:'13px/1.35 system-ui,Segoe UI,Inter,Arial',borderRadius:'.4rem',zIndex:1001
+    });
     document.body.appendChild(t);
   }
-  // legenda konténer
   if(!document.getElementById('legend')){
-    const d = document.createElement('div');
-    d.id = 'legend';
-    document.body.appendChild(d);
+    const d = document.createElement('div'); d.id='legend'; document.body.appendChild(d);
   }
-  // css a legendához
   if(!document.getElementById('legend-style')){
     const css = `
       #legend{position:fixed;left:12px;top:12px;z-index:1000;
@@ -107,6 +97,9 @@ window.addEventListener('pointermove', e=>{
   mouse.x  = (e.clientX/innerWidth)*2-1;
   mouse.y  =-(e.clientY/innerHeight)*2+1;
 });
+
+/* >>> FONTOS: előre deklaráljuk, hogy applyFilter() már lássa <<< */
+let activeKey = null;
 
 /* -------------------- ADAT -------------------- */
 const geo = await (await fetch(GEO_PATH)).json();
@@ -208,8 +201,8 @@ for (const f of geo.features){
     key: name,
     cluster: cid,
     label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-    s: 1.0,   // aktuális skála faktor
-    t: 1.0    // cél skála faktor
+    s: 1.0,   // aktuális skála
+    t: 1.0    // cél skála
   };
   mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
 
@@ -253,7 +246,6 @@ function buildLegend(){
   const box = document.getElementById('legend');
   if (!box) return;
 
-  // fejléc + mind/semmi
   box.innerHTML = '';
   const hdr = document.createElement('div');
   hdr.className = 'hdr';
@@ -262,7 +254,6 @@ function buildLegend(){
     <button id="lg-none" type="button">Semmi</button>`;
   box.appendChild(hdr);
 
-  // sorok
   for(const [k,label] of Object.entries(CLUSTER_LABELS)){
     const cid = Number(k);
     const row = document.createElement('label');
@@ -274,7 +265,6 @@ function buildLegend(){
     box.appendChild(row);
   }
 
-  // események
   box.addEventListener('change', e=>{
     if(!e.target.classList.contains('lg-chk')) return;
     const cid = Number(e.target.dataset.cid);
@@ -295,8 +285,9 @@ function buildLegend(){
 function applyFilter(){
   iconsGroup.children.forEach(m => m.visible = ACTIVE.has(m.userData.cluster));
   fillsGroup.children.forEach(m => m.visible = ACTIVE.has(m.userData.cluster));
+
   // ha rejtett elem fölött álltunk, rejtsük a tooltipet
-  if (activeKey){
+  if (activeKey !== null){
     const im = iconByKey[activeKey];
     if (!im || !im.visible){ activeKey=null; tooltip.style.display='none'; }
   }
@@ -317,12 +308,10 @@ function fitGroup(obj, camera, controls, offset=1.25){
 }
 
 /* -------------------- HOVER: POLIGON → IKON -------------------- */
-let activeKey = null;
-
 function animate(){
   controls.update();
 
-  // 1) raycast poligonokra
+  // raycast poligonokra
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(fillsGroup.children, true);
 
@@ -350,7 +339,7 @@ function animate(){
     tooltip.style.display='none';
   }
 
-  // 2) ikon skálázás simítva
+  // ikon skálázás simítva
   iconMeshes.forEach(m=>{
     m.userData.t = (m.userData.key === activeKey) ? 1.35 : 1.0;
     m.userData.s = THREE.MathUtils.lerp(m.userData.s, m.userData.t, 0.12);
