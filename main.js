@@ -459,16 +459,15 @@ function onClick(){
 
 /* -------------------- PANEL LOGIKA -------------------- */
 const panel = document.getElementById('sidepanel');
-
 function openPanel(name, fillObj){
   detailLock = name;
 
-  // kamera zoom + enyhe döntés
+  // kamera rázoom + enyhe döntés
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false);
   flyToBox(box, 1.05, 900);
 
-  // tartalom
+  // --- panel tartalom ---
   const im  = iconByKey[name];
   const cid = im?.userData?.cluster ?? null;
 
@@ -479,38 +478,36 @@ function openPanel(name, fillObj){
 
   const meta = META.get(name);
   const sval = panel.querySelector('.sval');
-  const barFill = panel.querySelector('.bar .fill');
+  const barf = panel.querySelector('.bar .fill');
   if (meta?.s!=null && isFinite(meta.s)){
-    const s = Number(meta.s);
+    const s = +meta.s;
     sval.textContent = s.toFixed(3);
-    const pct = Math.max(0, Math.min(1, (s + 1) / 2)) * 100;
-    barFill.style.width = pct.toFixed(1) + '%';
+    barf.style.width = ((s + 1) / 2 * 100).toFixed(1) + '%';
   } else {
     sval.textContent = '–';
-    barFill.style.width = '0%';
+    barf.style.width = '0%';
   }
 
   const UL = panel.querySelector('.feat-list');
   UL.innerHTML = '';
-  const tops = (meta?.tops && meta.tops.length) ? meta.tops.slice(0,3) : [];
-  if (tops.length){
-    tops.forEach(t=>{
-      const li = document.createElement('li');
-      li.textContent = prettifyFeature(t);
-      UL.appendChild(li);
-    });
-  } else {
+  (meta?.tops?.slice(0,3) ?? []).forEach(t=>{
+    const li = document.createElement('li');
+    li.textContent = prettifyFeature(t);
+    UL.appendChild(li);
+  });
+  if (!UL.children.length){
     const li = document.createElement('li'); li.textContent = '–'; UL.appendChild(li);
   }
 
-  // döntésfa PNG (statikus V1)
+  // --- döntésfa PNG (V1) ---
   const img = panel.querySelector('#sp-tree-img');
   if (img){
-    if (cid != null){
-      img.style.display = '';
-      img.src = fromHere(`dtree_cluster${cid}_FULL.png`); // PNG legyen ugyanott, ahol a main.js
+    if (cid!=null){
+      // FIGYELEM: fájlnév: dtree_cluster{cid}_FULL.png (nincs 's' a végén!)
+      img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
       img.alt = `Klaszter ${cid} döntésfa`;
-      img.onerror = () => { img.style.display = 'none'; }; // ha nincs PNG, ne dobjunk hibát
+      img.style.display = '';
+      img.onerror = () => { img.style.display = 'none'; };
     } else {
       img.removeAttribute('src');
       img.style.display = 'none';
@@ -545,15 +542,6 @@ window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
   }
 
   panel.classList.add('open');
-
-
-function closePanel(){
-  if (!panel.classList.contains('open')) return;
-  panel.classList.remove('open');
-  detailLock = null;
-  // vissza ország-nézetbe, szemből
-  goNationView(false);
-}
 
 /* -------------------- ALIAS + CSV BETÖLTŐK -------------------- */
 function prettifyFeature(s){
