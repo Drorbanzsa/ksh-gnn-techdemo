@@ -1,16 +1,26 @@
 <!doctype html>
 <html lang="hu">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KSH GNN – Techdemó</title>
-  <style>
-    html,body{margin:0;height:100%;overflow:hidden}
-    canvas{display:block}
-  </style>
-</head>
-<body>
-  <!-- Minden UI elemet a main.js hoz létre -->
-  <script type="module" src="./main.js?v=2"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>KSH GNN – Techdemó</title>
+    <style>
+      html,body{margin:0;height:100%;overflow:hidden}
+      canvas{display:block}
+    </style>
+
+    <!-- IMPORT MAP – EZ LEGYEN A HEAD-BEN, ÉS A main.js ELŐTT -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <!-- csak EGY modul script -->
+    <script type="module" src="./main.js?v=4"></script>
+  </body>
 </html>
