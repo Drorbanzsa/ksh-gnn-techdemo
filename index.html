@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="utf-8">
-  <title>ICON-WORLD Hungary -Demo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KSH GNN – Techdemó</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    body,html{margin:0;height:100%;overflow:hidden}
-    #tooltip{position:fixed;pointer-events:none;padding:4px 8px;
-      background:#fff;border:1px solid #ccc;border-radius:4px;
-      font:12px/1.4 Arial;display:none;white-space:nowrap}
+    html, body, #map { height: 100%; margin: 0; }
+    .legend { background: rgba(255,255,255,.9); padding:.5rem .7rem; border-radius:.4rem; box-shadow:0 2px 6px rgba(0,0,0,.15); font:13px/1.3 system-ui,Segoe UI,Inter,Arial; }
+    .legend .swatch { display:inline-block; width:12px; height:12px; margin-right:.4rem; border:1px solid rgba(0,0,0,.3); vertical-align:-2px; }
   </style>
 </head>
 <body>
-  <div id="tooltip"></div>
-  <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
-  <script src="colors.js"></script>
-  <script type="module" src="main.js"></script>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
