@@ -463,7 +463,7 @@ const panel = document.getElementById('sidepanel');
 function openPanel(name, fillObj){
   detailLock = name;
 
-  // kamera zoom az adott poligonra + döntés engedélyezése
+  // kamera zoom + enyhe döntés
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false);
   flyToBox(box, 1.05, 900);
@@ -479,15 +479,15 @@ function openPanel(name, fillObj){
 
   const meta = META.get(name);
   const sval = panel.querySelector('.sval');
-  const fill = panel.querySelector('.bar .fill');
+  const barFill = panel.querySelector('.bar .fill');
   if (meta?.s!=null && isFinite(meta.s)){
     const s = Number(meta.s);
     sval.textContent = s.toFixed(3);
-    const pct = Math.max(0, Math.min(1, (s + 1) / 2)) * 100; // -1..1 → 0..100%
-    fill.style.width = pct.toFixed(1)+'%';
+    const pct = Math.max(0, Math.min(1, (s + 1) / 2)) * 100;
+    barFill.style.width = pct.toFixed(1) + '%';
   } else {
     sval.textContent = '–';
-    fill.style.width = '0%';
+    barFill.style.width = '0%';
   }
 
   const UL = panel.querySelector('.feat-list');
@@ -502,6 +502,35 @@ function openPanel(name, fillObj){
   } else {
     const li = document.createElement('li'); li.textContent = '–'; UL.appendChild(li);
   }
+
+  // döntésfa PNG (statikus V1)
+  const img = panel.querySelector('#sp-tree-img');
+  if (img){
+    if (cid != null){
+      img.style.display = '';
+      img.src = fromHere(`dtree_cluster${cid}_FULL.png`); // PNG legyen ugyanott, ahol a main.js
+      img.alt = `Klaszter ${cid} döntésfa`;
+      img.onerror = () => { img.style.display = 'none'; }; // ha nincs PNG, ne dobjunk hibát
+    } else {
+      img.removeAttribute('src');
+      img.style.display = 'none';
+    }
+  }
+
+  panel.classList.add('open');
+}
+
+function closePanel(){
+  if (!panel.classList.contains('open')) return;
+  panel.classList.remove('open');
+  detailLock = null;
+  // vissza ország-nézetbe (felülnézet, fix dőlés)
+  goNationView(false);
+}
+
+// Esc-re is zárjuk, ez már nálad bent volt:
+window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
+
 
   // döntésfa PNG (V1) – a PNG-k a main.js mellett legyenek!
   const img = panel.querySelector('#sp-tree-img');
