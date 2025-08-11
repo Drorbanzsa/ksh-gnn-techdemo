@@ -3,11 +3,13 @@ import { OrbitControls }  from 'https://unpkg.com/three@0.157.0/examples/jsm/con
 import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
+// *** MINDENT ettől a fájltól relatívan oldunk fel (stabil GH Pages alatt is) ***
+const fromHere = (p) => new URL(p, import.meta.url).href;
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
-const GEO_PATH   = './clusters_k5.geojson';
-const SIL_PATH   = './silhouette_local.csv';
-const ALIAS_PATH = './alias_map.json';   // ha nincs, fallback {} lesz
+const GEO_PATH   = fromHere('clusters_k5.geojson');
+const SIL_PATH   = fromHere('silhouette_local.csv');
+const ALIAS_PATH = fromHere('alias_map.json');
 
 const OX = 19.5, OY = 47.0;        // ország-közép (WGS84)
 const SX = 6.5,  SY = 9.5;         // lon/lat → vászon skála
@@ -252,7 +254,10 @@ function drawBorders(geojson, group){
 /* -------------------- IKONOK (SVG → 3D) -------------------- */
 const iconMeshes = [];
 const iconByKey  = {}; // NAME -> ikon mesh
-const iconGeoms = await loadIconGeoms(ICON_FILES);
+const ICONS_ABS = Object.fromEntries(
+  Object.entries(ICON_FILES).map(([k, p]) => [k, fromHere(p)])
+);
+const iconGeoms = await loadIconGeoms(ICONS_ABS);
 
 for (const f of geo.features){
   const cid  = f.properties.cluster;
@@ -462,7 +467,20 @@ const panel = document.getElementById('sidepanel');
 
 function openPanel(name, fillObj){
   detailLock = name;
+  // dtree PNG (statikus V1)
+  const im = iconByKey[name];
+  const cid = im?.userData?.cluster ?? null;
 
+  const dt = panel.querySelector('details.sp-dt');
+  if (dt) {
+    dt.querySelector('.cid').textContent = (cid ?? '–');
+    const img = dt.querySelector('img.dt-img');
+    img.src = fromHere(`dtree_cluster${cid}_FULL.png`); // <— FIG/ folder!
+    img.alt = `Klaszter ${cid} döntésfa`;
+  }
+
+  panel.classList.add('open');
+}
   // kamera zoom az adott poligonra + döntés engedélyezése
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false);
