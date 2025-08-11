@@ -1,0 +1,20 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Épület -->
+  <rect x="36" y="18" width="56" height="100" fill="#2E86C1" stroke="#1B4F72" stroke-width="3" rx="3"></rect>
+  <!-- Ablaksorok -->
+  <g fill="#87CEEB">
+    <!-- 6 sor, 3 oszlop -->
+    <g id="windowRow">
+      <rect x="44" y="26" width="12" height="12" rx="1.5"></rect>
+      <rect x="58" y="26" width="12" height="12" rx="1.5"></rect>
+      <rect x="72" y="26" width="12" height="12" rx="1.5"></rect>
+    </g>
+    <use href="#windowRow" transform="translate(0 18)"></use>
+    <use href="#windowRow" transform="translate(0 36)"></use>
+    <use href="#windowRow" transform="translate(0 54)"></use>
+    <use href="#windowRow" transform="translate(0 72)"></use>
+    <use href="#windowRow" transform="translate(0 90)"></use>
+  </g>
+  <!-- Antenna -->
+  <line x1="64" y1="6" x2="64" y2="18" stroke="#1B4F72" stroke-width="4" stroke-linecap="round"></line>
+</svg>

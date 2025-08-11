@@ -1,0 +1,26 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <circle id="gearHole" cx="64" cy="64" r="10"></circle>
+  </defs>
+  <!-- Fogaskerék test -->
+  <g fill="#666" stroke="#4A4A4A" stroke-width="4">
+    <circle cx="64" cy="64" r="36"></circle>
+    <!-- 12 fog -->
+    <g id="tooth">
+      <rect x="60" y="10" width="8" height="18" rx="2"></rect>
+    </g>
+    <use href="#tooth" transform="rotate(30 64 64)"></use>
+    <use href="#tooth" transform="rotate(60 64 64)"></use>
+    <use href="#tooth" transform="rotate(90 64 64)"></use>
+    <use href="#tooth" transform="rotate(120 64 64)"></use>
+    <use href="#tooth" transform="rotate(150 64 64)"></use>
+    <use href="#tooth" transform="rotate(180 64 64)"></use>
+    <use href="#tooth" transform="rotate(210 64 64)"></use>
+    <use href="#tooth" transform="rotate(240 64 64)"></use>
+    <use href="#tooth" transform="rotate(270 64 64)"></use>
+    <use href="#tooth" transform="rotate(300 64 64)"></use>
+    <use href="#tooth" transform="rotate(330 64 64)"></use>
+  </g>
+  <!-- Középső furat -->
+  <use href="#gearHole" fill="#bbb" stroke="#4A4A4A" stroke-width="4"></use>
+</svg>

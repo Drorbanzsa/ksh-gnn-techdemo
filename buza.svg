@@ -1,0 +1,12 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Szár -->
+  <line x1="64" y1="10" x2="64" y2="118" stroke="#8B5A2B" stroke-width="4" stroke-linecap="round"></line>
+  <!-- Szemek -->
+  <g fill="#F5C04D" stroke="#D9A734" stroke-width="1.5" stroke-linejoin="round">
+    <!-- Felső magok -->
+    <path d="M64 18c9 0 14 5 14 10 0 5-5 10-14 10S50 33 50 28c0-5 5-10 14-10z"></path>
+    <path d="M64 38c9 0 14 5 14 10 0 5-5 10-14 10S50 53 50 48c0-5 5-10 14-10z"></path>
+    <path d="M64 58c9 0 14 5 14 10 0 5-5 10-14 10S50 73 50 68c0-5 5-10 14-10z"></path>
+    <path d="M64 78c9 0 14 5 14 10 0 5-5 10-14 10S50 93 50 88c0-5 5-10 14-10z"></path>
+  </g>
+</svg>

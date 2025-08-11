@@ -1,0 +1,16 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rúd -->
+  <rect x="60" y="40" width="8" height="76" fill="#8B5A2B"></rect>
+  <!-- Ernyő -->
+  <path d="M12 40
+           Q64 -4 116 40
+           L104 52
+           Q64 16 24 52
+           Z" fill="#FF6347" stroke="#CD3E24" stroke-width="3"></path>
+  <!-- Díszítő csík -->
+  <path d="M20 44
+           Q64 8 108 44
+           L96 52
+           Q64 24 32 52
+           Z" fill="#FAD59B" opacity="0.8"></path>
+</svg>
