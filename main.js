@@ -46,11 +46,11 @@ const dir = new THREE.DirectionalLight(0xffffff, 0.6);
 dir.position.set(2, -2, 3);
 scene.add(dir);
 
-/* -------------------- TOOLTIP / RAYCAST -------------------- */
+/* -------------------- TOOLTIP -------------------- */
 const tooltip = document.getElementById('tooltip');
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-let pointerX=0, pointerY=0, lastHit=null;
+let pointerX=0, pointerY=0;
 
 window.addEventListener('pointermove', e=>{
   pointerX=e.clientX; pointerY=e.clientY;
@@ -68,14 +68,16 @@ const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(b
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
 
 /* -------------------- POLIGON-KITÖLTÉS (színezés) -------------------- */
-drawFills(geo, fillsGroup);
+/** visszaad egy map-et: key (=NAME) -> fillMesh */
+const fillsByKey = drawFills(geo, fillsGroup);
 
 function drawFills(geojson, group){
+  const map = {};
   for(const f of geojson.features){
     const cid = f.properties.cluster;
+    const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
     const color = new THREE.Color(CLUSTER_COLORS[cid] || '#888');
 
-    // Többgyűrűs topológia (Polygon + MultiPolygon) kezelése:
     const polys = [];
     if (f.geometry?.type === 'Polygon') polys.push(f.geometry.coordinates);
     else if (f.geometry?.type === 'MultiPolygon') polys.push(...f.geometry.coordinates);
@@ -84,34 +86,37 @@ function drawFills(geojson, group){
     for (const rings of polys){
       if (!rings?.length) continue;
 
-      // Külső gyűrű (első) → CCW; lyukak → CW
-      const outer = vec2Ring(rings[0]).map(([x,y]) => new THREE.Vector2(...toXY(x,y).slice(0,2)));
+      const outer = trimClose(rings[0]).map(([x,y]) => new THREE.Vector2(...toXY(x,y).slice(0,2)));
       if (THREE.ShapeUtils.isClockWise(outer)) outer.reverse();
 
       const shape = new THREE.Shape(outer);
-
       for (let i=1; i<rings.length; i++){
-        const hole = vec2Ring(rings[i]).map(([x,y]) => new THREE.Vector2(...toXY(x,y).slice(0,2)));
+        const hole = trimClose(rings[i]).map(([x,y]) => new THREE.Vector2(...toXY(x,y).slice(0,2)));
         if (!THREE.ShapeUtils.isClockWise(hole)) hole.reverse();
         shape.holes.push(new THREE.Path(hole));
       }
 
       const geom = new THREE.ShapeGeometry(shape);
-      // kicsit „a térkép síkja alá”, hogy ne villogjon az ikonokkal
-      geom.translate(0,0,-0.03);
+      geom.translate(0,0,-0.03); // picit lejjebb, ne zizegjen az ikonokkal
 
-      const mat  = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.28, depthWrite:false });
+      const mat  = new THREE.MeshBasicMaterial({
+        color, transparent:true, opacity:0.28, depthWrite:false
+      });
       const mesh = new THREE.Mesh(geom, mat);
+      mesh.userData = { key:name, cluster:cid, baseOpacity:0.28, baseColor: color.clone() };
       group.add(mesh);
+
+      // több poligon is tartozhat egy névhez: az elsőt jegyezzük meg
+      if (!map[name]) map[name] = mesh;
     }
   }
+  return map;
 
-  function vec2Ring(ring){
-    // Ha az első és utolsó pont azonos, az utolsót eldobjuk
+  function trimClose(ring){
     if (!ring?.length) return [];
     const last = ring[ring.length-1], first = ring[0];
     const same = last && first && last[0]===first[0] && last[1]===first[1];
-    return same ? ring.slice(0, -1) : ring.slice();
+    return same ? ring.slice(0,-1) : ring.slice();
   }
 }
 
@@ -141,10 +146,12 @@ function drawBorders(geojson, group){
 
 /* -------------------- IKONOK (SVG → 3D) -------------------- */
 const iconMeshes = [];
+const iconByKey  = {}; // NAME -> ikon mesh
 const iconGeoms = await loadIconGeoms(ICON_FILES);
 
 for (const f of geo.features){
   const cid = f.properties.cluster;
+  const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
   const geom = iconGeoms[cid];
   if (!geom) continue;
 
@@ -154,11 +161,20 @@ for (const f of geo.features){
   const [lon,lat] = lonLatOfFeature(f);
   const [X,Y,Z]   = toXY(lon, lat, 0);
   mesh.position.set(X,Y,Z);
+
+  // smooth skálázás állapot
+  mesh.userData = {
+    key: name,
+    cluster: cid,
+    label: `${name} · C${cid}`,
+    s: 1.0,        // aktuális skála faktor
+    t: 1.0         // cél skála faktor
+  };
   mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
 
-  mesh.userData = { label: `${f.properties.NAME ?? '—'} · C${cid}`, cluster: cid };
   iconsGroup.add(mesh);
   iconMeshes.push(mesh);
+  iconByKey[name] = mesh;
 }
 console.info('Ikonok száma:', iconMeshes.length);
 
@@ -201,24 +217,48 @@ function fitGroup(obj, camera, controls, offset=1.25){
   controls.target.copy(center); controls.update();
 }
 
-/* -------------------- ANIMÁCIÓS Hurok -------------------- */
+/* -------------------- HOVER LOGIKA: POLIGON -> IKON -------------------- */
+let activeKey = null; // épp fölé vitt járás neve
+
 function animate(){
   controls.update();
 
+  // 1) Raycast a járás-kitetöltésekre
   raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(iconMeshes, true);
+  const hits = raycaster.intersectObjects(fillsGroup.children, true);
+
   if (hits.length){
-    const m = hits[0].object;
-    if (lastHit && lastHit !== m) lastHit.rotation.z = 0;
-    m.rotation.z = 0.2; lastHit = m;
+    const fill = hits[0].object;
+    activeKey = fill.userData.key;
+    renderer.domElement.style.cursor = 'pointer';
+
+    // poligon kiemelés
+    fillsGroup.children.forEach(m=>{
+      const isActive = m.userData.key === activeKey;
+      m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
+    });
+
+    // tooltip (ikon feliratát használjuk)
+    const im = iconByKey[activeKey];
     tooltip.style.display='block';
     tooltip.style.left = (pointerX+12)+'px';
     tooltip.style.top  = (pointerY+12)+'px';
-    tooltip.textContent = m.userData.label;
+    tooltip.textContent = im ? im.userData.label : (fill.userData.key ?? '—');
   }else{
-    if (lastHit) lastHit.rotation.z = 0; lastHit = null;
+    activeKey = null;
+    renderer.domElement.style.cursor = 'default';
+    fillsGroup.children.forEach(m=> m.material.opacity = m.userData.baseOpacity);
     tooltip.style.display='none';
   }
+
+  // 2) Ikon skálázás simítva (csak az aktív járás ikonja nő)
+  iconMeshes.forEach(m=>{
+    m.userData.t = (m.userData.key === activeKey) ? 1.35 : 1.0;   // cél skála
+    m.userData.s = THREE.MathUtils.lerp(m.userData.s, m.userData.t, 0.12); // simítás
+    const s = m.userData.s;
+    m.scale.set(ICON_SCALE_XY*s, ICON_SCALE_XY*s, ICON_SCALE_Z*s);
+    // nincs forgatás ⇒ nincs „ideges” mozgás
+  });
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
