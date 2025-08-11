@@ -170,6 +170,8 @@ const content    = new THREE.Group(); scene.add(content);
 const fillsGroup = new THREE.Group(); fillsGroup.renderOrder = -2; content.add(fillsGroup);
 const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(bordersGrp);
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
+const NATION = computeNationView(content, camera);
+goNationView(true);   // induláskor felülnézetbe állunk
 
 /* -------------------- POLIGON‑KITÖLTÉS -------------------- */
 drawFills(geo, fillsGroup);
@@ -208,6 +210,12 @@ function drawFills(geojson, group){
       group.add(mesh);
     }
   }
+    // középpont elmentése későbbi fókuszhoz
+    const bb = new THREE.Box3().setFromObject(mesh);
+    const ctr = bb.getCenter(new THREE.Vector3());
+    ctr.z = 0; // síkra igazítjuk
+    mesh.userData.center = ctr;
+
   function trimClose(ring){
     if (!ring?.length) return [];
     const last = ring[ring.length-1], first = ring[0];
@@ -643,6 +651,74 @@ function animate(){
     }
   }
 
+// ===== Kamera segédek =====
+function computeNationView(obj, camera, offset=1.25){
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+
+  const maxDim = Math.max(size.x, size.y, Math.max(0.0001, size.z));
+  const fov = THREE.MathUtils.degToRad(camera.fov);
+  const camZ = Math.abs(maxDim / (2 * Math.tan(fov/2))) * offset;
+
+  return { center, camZ };
+}
+
+// finom kamera tween pozíció + target között
+function tweenCamera(toPos, toTarget, ms=900, ease=(t)=>t*(2-t), onDone=()=>{}){
+  const fromPos    = camera.position.clone();
+  const fromTarget = controls.target.clone();
+  const t0 = performance.now();
+
+  function step(now){
+    const t = Math.min(1, (now - t0) / ms);
+    const k = ease(t);
+
+    camera.position.lerpVectors(fromPos, toPos, k);
+    controls.target.lerpVectors(fromTarget, toTarget, k);
+    controls.update();
+
+    if (t < 1) requestAnimationFrame(step);
+    else onDone();
+  }
+  requestAnimationFrame(step);
+}
+
+// TOP-DOWN ország-nézet (mindig szembe)
+function goNationView(immediate=false){
+  const toPos    = new THREE.Vector3(NATION.center.x, NATION.center.y, NATION.camZ);
+  const toTarget = NATION.center.clone();
+
+  // tilt lock: felülnézet
+  controls.enableRotate = false;
+  controls.minPolarAngle = Math.PI/2;
+  controls.maxPolarAngle = Math.PI/2;
+
+  if (immediate){
+    camera.position.copy(toPos);
+    controls.target.copy(toTarget);
+    controls.update();
+  }else{
+    tweenCamera(toPos, toTarget, 700, (t)=>t*(2-t), ()=>controls.update());
+  }
+}
+
+// DETAIL nézet (rázoom + finom döntés)
+function goDetailView(centerVec3){
+  const dist   = NATION.camZ * 0.55;      // kb. milyen közel menjünk
+  const tiltY  = dist * 0.55;              // mennyire dőljünk „dél felé”
+  const toPos  = new THREE.Vector3(centerVec3.x, centerVec3.y - tiltY, dist*0.75);
+  const target = new THREE.Vector3(centerVec3.x, centerVec3.y, 0);
+
+  // tilt engedélyezése csak részletes nézetben
+  controls.enableRotate   = true;
+  controls.minPolarAngle  = 0.45;          // ~26°
+  controls.maxPolarAngle  = 1.25;          // ~72°
+  controls.enablePan      = false;
+
+  tweenCamera(toPos, target, 850, (t)=>t<.5 ? 2*t*t : -1+(4-2*t)*t);
+}
+  
   // 2) ikon skálázás simítva (ha panel nyitva, csak a lockolt nő)
   iconMeshes.forEach(m=>{
     const key = m.userData.key;
