@@ -4,6 +4,11 @@ import { SVGLoader }   from 'https://unpkg.com/three@0.157.0/examples/jsm/loader
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES } from './colors.js';
 
+// --- méretezési beállítások ---
+const ICON_SCALE_XY = 0.006;   // ikon "alapterület" (próba: 0.005–0.008)
+const ICON_SCALE_Z  = 0.003;   // ikon vastagság (legyen laposabb)
+const SX = 6.5, SY = 9.5;      // lon/lat → vászon skála (kicsit nagyobb széthúzás)
+
 // --- Alap 3D ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -63,7 +68,7 @@ for (const [cid, path] of Object.entries(ICON_FILES)) {
     iconGeoms[cid] = geom;
   } catch (e) {
     console.warn('SVG load hiba, fallback henger:', path, e);
-    iconGeoms[cid] = new THREE.CylinderGeometry(0.6, 0.6, 0.12, 24);
+    iconGeoms[cid] = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
   }
 }
 
@@ -102,7 +107,7 @@ for (const f of geo.features) {
   const Y = (lat - OY) * SY;
 
   mesh.position.set(X, Y, 0);
-  mesh.scale.setScalar(0.02);
+  mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
   mesh.userData.label = `${f.properties.NAME ?? '—'} • C${cid}`;
   group.add(mesh);
   iconMeshes.push(mesh);
