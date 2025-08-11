@@ -4,22 +4,19 @@ import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loa
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
-// minden útvonal a main.js-hez képest
+// minden útvonal a main.js-hez képest (GH Pages-safe)
 const fromHere = (p) => new URL(p, import.meta.url).href;
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
-// ha minden a gyökérben:
+// minden a gyökérben:
 const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
 
-// ikonok:
+// ikon SVG-k abszolút útvonala (NE deklaráld kétszer!)
 const ICONS_ABS = Object.fromEntries(
   Object.entries(ICON_FILES).map(([k, p]) => [k, fromHere(p)])
 );
-
-// döntésfa PNG a panelben:
-img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
 
 const OX = 19.5, OY = 47.0;
 const SX = 6.5,  SY = 9.5;
@@ -173,13 +170,12 @@ let activeKey = null;        // hoverelt járás
 let detailLock = null;       // panel nyitva → lockolt járás
 let fly = null;              // kamera „fly to” állapot
 let NATION = null;           // ország-nézet paraméterei
-const HOME = { pos: new THREE.Vector3(), target: new THREE.Vector3() };
 
 /* -------------------- ADATOK BETÖLTÉSE -------------------- */
 const [geo, META, ALIAS] = await Promise.all([
   (await fetch(GEO_PATH)).json(),
-  loadMeta(SIL_PATH),
-  loadAlias(ALIAS_PATH)
+  loadMeta(SIL_PATH),        // ha nincs CSV, nem omlik össze
+  loadAlias(ALIAS_PATH)      // ha nincs JSON, {}-t ad vissza
 ]);
 
 /* -------------------- CSOPORTOK -------------------- */
@@ -264,9 +260,6 @@ function drawBorders(geojson, group){
 /* -------------------- IKONOK (SVG → 3D) -------------------- */
 const iconMeshes = [];
 const iconByKey  = {}; // NAME -> ikon mesh
-const ICONS_ABS = Object.fromEntries(
-  Object.entries(ICON_FILES).map(([k, p]) => [k, fromHere(p)])
-);
 const iconGeoms = await loadIconGeoms(ICONS_ABS);
 
 for (const f of geo.features){
@@ -389,7 +382,6 @@ function computeNationView(obj, camera, offset=1.25){
   return { center, camZ };
 }
 
-// finom kamera tween pozíció + target között
 function tweenCamera(toPos, toTarget, ms=900, ease=(t)=>t*(2-t), onDone=()=>{}){
   const fromPos    = camera.position.clone();
   const fromTarget = controls.target.clone();
@@ -455,12 +447,6 @@ function flyToBox(box, offset=1.10, duration=900){
   };
 }
 
-// indulás: ország‑nézet
-NATION = computeNationView(content, camera);
-goNationView(true);
-HOME.pos.copy(camera.position);
-HOME.target.copy(controls.target);
-
 /* -------------------- HOVER + CLICK → PANEL -------------------- */
 renderer.domElement.addEventListener('click', onClick);
 function onClick(){
@@ -523,7 +509,7 @@ function openPanel(name, fillObj){
     img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
     img.alt = `Klaszter ${cid} döntésfa`;
     img.style.display = '';
-    img.onerror = () => { img.style.display = 'none'; }; // ha nincs PNG, ne villogjon 404
+    img.onerror = () => { img.style.display = 'none'; };
   } else {
     img.removeAttribute('src');
     img.style.display = 'none';
@@ -672,3 +658,7 @@ function animate(){
   requestAnimationFrame(animate);
 }
 animate();
+
+// csak MOST számoljuk ki az ország‑nézetet (már vannak objektumok a content‑ben)
+NATION = computeNationView(content, camera);
+goNationView(true);
