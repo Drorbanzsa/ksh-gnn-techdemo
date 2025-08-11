@@ -8,8 +8,6 @@ import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 const fromHere = (p) => new URL(p, import.meta.url).href;
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
-const fromHere = (p) => new URL(p, import.meta.url).href;
-
 // ha minden a gyökérben:
 const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
