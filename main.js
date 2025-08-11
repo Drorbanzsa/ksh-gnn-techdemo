@@ -533,7 +533,7 @@ function openPanel(name, fillObj){
   }
 
   panel.classList.add('open');
-}
+  }
 
 function closePanel(){
   if (!panel.classList.contains('open')) return;
