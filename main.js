@@ -545,7 +545,7 @@ window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
   }
 
   panel.classList.add('open');
-}
+
 
 function closePanel(){
   if (!panel.classList.contains('open')) return;
