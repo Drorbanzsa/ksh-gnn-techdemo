@@ -1,29 +1,44 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js';
-import { SVGLoader }   from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
+import { SVGLoader }     from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES } from './colors.js';
 
-// --- méretezési beállítások ---
-const ICON_SCALE_XY = 0.006;   // ikon "alapterület" (próba: 0.005–0.008)
-const ICON_SCALE_Z  = 0.003;   // ikon vastagság (legyen laposabb)
-const SX = 6.5, SY = 9.5;      // lon/lat → vászon skála (kicsit nagyobb széthúzás)
+/* -------------------- MÉRETEK / TRANSZFORM -------------------- */
+const OX = 19.5, OY = 47.0;      // Magyarország közepe (WGS84 approx)
+const SX = 6.5,  SY = 9.5;       // lon/lat → vászon skála
+const ICON_SCALE_XY = 0.006;     // ikon alapterület
+const ICON_SCALE_Z  = 0.003;     // ikon vastagság
 
-// --- Alap 3D ---
+// lon/lat -> lokális XYZ
+function toXY(lon, lat, z = 0){
+  return [ (lon - OX) * SX, (lat - OY) * SY, z ];
+}
+function lonLatOfFeature(f){
+  const p = f.properties || {};
+  if (p.cx != null && p.cy != null) return [p.cx, p.cy];
+  try {
+    const c = turf.centerOfMass(f).geometry.coordinates; // [lon, lat]
+    return [c[0], c[1]];
+  } catch { return [OX, OY]; }
+}
+
+/* -------------------- ALAP 3D SZETT -------------------- */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 5000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth, innerHeight);
-document.body.appendChild(renderer.domElement);
-
 camera.position.set(0, -6, 4);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
-controls.autoRotate = false;
-controls.autoRotateSpeed = 0.4;
+controls.enableRotate = true;   // ha teljesen tiltani akarod: false
+controls.autoRotate = false;    // kérésedre NEM forog
 
 window.addEventListener('resize', ()=>{
   camera.aspect = innerWidth/innerHeight;
@@ -36,7 +51,7 @@ const dir = new THREE.DirectionalLight(0xffffff, 0.6);
 dir.position.set(2, -2, 3);
 scene.add(dir);
 
-// --- Tooltip / raycaster ---
+/* -------------------- TOOLTIP / RAYCAST -------------------- */
 const tooltip = document.getElementById('tooltip');
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -48,9 +63,10 @@ window.addEventListener('pointermove', e=>{
   mouse.y = -(e.clientY / innerHeight) * 2 + 1;
 });
 
-// --- Ikon geometriák betöltése (SVG → 3D), hibabiztosan ---
+/* -------------------- IKON GEOMETRIÁK (SVG → 3D) -------------------- */
 const iconGeoms = {};
 const loader = new SVGLoader();
+
 for (const [cid, path] of Object.entries(ICON_FILES)) {
   try {
     const svgData = await loader.loadAsync(path);
@@ -63,7 +79,7 @@ for (const [cid, path] of Object.entries(ICON_FILES)) {
       geom.center();
     } else {
       console.warn('SVG nem adott ki shape-et, fallback henger:', path);
-      geom = new THREE.CylinderGeometry(0.6, 0.6, 0.12, 24);
+      geom = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
     }
     iconGeoms[cid] = geom;
   } catch (e) {
@@ -72,32 +88,24 @@ for (const [cid, path] of Object.entries(ICON_FILES)) {
   }
 }
 
-// --- Adat betöltés ---
+/* -------------------- ADAT BETÖLTÉS -------------------- */
 const geo = await (await fetch('./clusters_k5.geojson')).json();
 
-// --- JÁRÁSHATÁROK KIRAJZOLÁSA ---
-drawBorders(geo);
+/* -------------------- JÁRÁSHATÁROK (LINESEGMENTS) -------------------- */
+const content = new THREE.Group();   // minden tartalom ide
+scene.add(content);
 
-function drawBorders(geojson){
-  // lon/lat -> XY ugyanazzal a transzformmal, mint az ikonoknál
-  const toXY = (lon, lat) => ([
-    (lon - OX) * SX,
-    (lat - OY) * SY,
-    -0.02 // pici negatív Z, hogy ne "villogjon" az ikonokkal
-  ]);
+drawBorders(geo, content);
 
-  // felgyűjtjük az összes szegmenst egyetlen vonal‑geometriába (gyorsabb)
+function drawBorders(geojson, group){
   const pos = [];
-
   const pushRing = (ring) => {
-    // ring: [[lon,lat], [lon,lat], ...], az utolsó többnyire == első
     for (let i = 1; i < ring.length; i++) {
-      const [x1, y1, z1] = toXY(ring[i-1][0], ring[i-1][1]);
-      const [x2, y2, z2] = toXY(ring[i  ][0], ring[i  ][1]);
+      const [x1, y1, z1] = toXY(ring[i-1][0], ring[i-1][1], -0.02);
+      const [x2, y2, z2] = toXY(ring[i  ][0], ring[i  ][1], -0.02);
       pos.push(x1, y1, z1, x2, y2, z2);
     }
   };
-
   for (const f of geojson.features){
     const g = f.geometry;
     if (!g) continue;
@@ -107,61 +115,45 @@ function drawBorders(geojson){
       for (const poly of g.coordinates) for (const ring of poly) pushRing(ring);
     }
   }
-
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-
-  const mat  = new THREE.LineBasicMaterial({
-    color: 0x555555, transparent: true, opacity: 0.6
-    // megjegyzés: a THREE linewidth böngészőkben jellemzően 1px
-  });
-
+  const mat  = new THREE.LineBasicMaterial({ color:0x555555, transparent:true, opacity:0.6 });
   const borders = new THREE.LineSegments(geom, mat);
-  borders.renderOrder = -1; // a biztos kedvéért mögé rajzoljuk az ikonoknak
-  scene.add(borders);
+  borders.renderOrder = -1; // ikonok mögé
+  group.add(borders);
 }
 
-// Lon/lat → lokális koordináta (kisebb skála!)
-const OX = 19.5, OY = 47.0;  // közép
-
-
-function lonLatOfFeature(f) {
-  const p = f.properties || {};
-  if (p.cx != null && p.cy != null) return [p.cx, p.cy];
-  try {
-    const c = turf.centerOfMass(f).geometry.coordinates; // [lon, lat]
-    return [c[0], c[1]];
-  } catch {
-    return [19.5, 47.0];
-  }
-}
-
+/* -------------------- IKONOK FELRAKÁSA -------------------- */
 const iconMeshes = [];
-const group = new THREE.Group();
-scene.add(group);
+const iconsGroup = new THREE.Group();
+content.add(iconsGroup);
 
 for (const f of geo.features) {
-  const cid = f.properties.cluster;
+  const cid  = f.properties.cluster;
   const geom = iconGeoms[cid];
   if (!geom) continue;
 
-  const mat = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+  const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
   const mesh = new THREE.Mesh(geom, mat);
 
   const [lon, lat] = lonLatOfFeature(f);
-  const X = (lon - OX) * SX;
-  const Y = (lat - OY) * SY;
-
-  mesh.position.set(X, Y, 0);
+  const [X, Y, Z] = toXY(lon, lat, 0);
+  mesh.position.set(X, Y, Z);
   mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
-  mesh.userData.label = `${f.properties.NAME ?? '—'} • C${cid}`;
-  group.add(mesh);
+
+  mesh.userData = {
+    label: `${f.properties.NAME ?? '—'} · C${cid}`,
+    cluster: cid
+  };
+
+  iconsGroup.add(mesh);
   iconMeshes.push(mesh);
 }
+
 console.info('Ikonok száma:', iconMeshes.length);
 
-// --- Kamera illesztése az ikon-csoportra ---
-fitGroup(group, camera, controls);
+/* -------------------- KAMERA IGAZÍTÁS -------------------- */
+fitGroup(content, camera, controls);
 
 function fitGroup(obj, camera, controls, offset=1.25) {
   const box = new THREE.Box3().setFromObject(obj);
@@ -181,7 +173,7 @@ function fitGroup(obj, camera, controls, offset=1.25) {
   controls.update();
 }
 
-// --- Loop ---
+/* -------------------- ANIMÁCIÓS Hurok -------------------- */
 function animate(){
   controls.update();
 
