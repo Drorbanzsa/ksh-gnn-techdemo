@@ -1,31 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KSH GNN – Techdemó</title>
 
-  <!-- Three import map -->
-  <script type="importmap">
-  { "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }
-  </script>
+  <!-- (opcionális) betűk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
-  <!-- Turf centroidhoz -->
-  <script defer src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-
+  <!-- Alap stílusok (tooltip, legenda, panel) -->
   <style>
-    html, body { height: 100%; margin: 0; }
-    canvas { display:block; }
-    #tooltip{
-      position:fixed; display:none; pointer-events:none;
-      background:rgba(0,0,0,.85); color:#fff; padding:.35rem .5rem;
-      border-radius:.35rem; font:13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
-      box-shadow:0 2px 10px rgba(0,0,0,.25); white-space:nowrap;
-    }
+    html,body{height:100%;margin:0}
+    body{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:#fff;overflow:hidden}
+    canvas{display:block}
+
+    #tooltip{position:fixed;display:none;pointer-events:none;background:rgba(0,0,0,.82);color:#fff;
+      padding:.35rem .5rem;border-radius:.4rem;font-size:13px;z-index:1001}
+
+    #legend{position:fixed;left:12px;top:12px;z-index:1000;background:rgba(255,255,255,.92);
+      padding:.55rem .6rem;border-radius:.5rem;box-shadow:0 2px 10px rgba(0,0,0,.15);font-size:13px}
+    #legend .row{display:flex;align-items:center;gap:.45rem;margin:.25rem 0}
+    #legend .sw{width:12px;height:12px;border:1px solid rgba(0,0,0,.25)}
+    #legend .hdr{font-weight:600;margin-bottom:.2rem}
+    #legend button{margin-left:.35rem;font-size:12px}
+
+    #sidepanel{position:fixed;right:14px;top:14px;z-index:1000;width:340px;max-width:40vw;background:rgba(255,255,255,.96);
+      border-radius:.75rem;box-shadow:0 12px 30px rgba(0,0,0,.2);transform:translateX(18px);opacity:0;pointer-events:none;
+      transition:all .25s ease}
+    #sidepanel.open{transform:translateX(0);opacity:1;pointer-events:auto}
+    #sidepanel .sp-hdr{display:grid;grid-template-columns:1fr auto auto;gap:.4rem;align-items:center;
+      padding:.7rem .8rem .3rem .9rem}
+    #sidepanel .sp-title{font-weight:600}
+    #sidepanel .sp-pill{justify-self:start;font-size:12px;padding:.1rem .45rem;border-radius:.5rem;color:#222;background:#eee;
+      border:1px solid rgba(0,0,0,.15)}
+    #sidepanel .sp-close{border:0;background:transparent;font:16px/1 monospace;cursor:pointer;opacity:.6}
+    #sidepanel .sp-body{padding:.2rem .9rem .8rem .9rem}
+    #sidepanel .sp-metric .k{font-weight:600;margin:.35rem 0 .15rem}
+    #sidepanel .bar{height:6px;background:#eee;border-radius:999px;overflow:hidden;margin-top:.3rem}
+    #sidepanel .bar .fill{height:100%;width:0;background:linear-gradient(90deg,#ff6b6b,#ffd166,#06d6a0)}
+    #sidepanel .feat-list{margin:.25rem 0 0 .9rem;padding:0}
+    #sidepanel .feat-list li{margin:.15rem 0}
+
+    /* döntésfa PNG helye a panelben */
+    #sidepanel details.sp-dt{margin-top:.6rem}
+    #sidepanel details.sp-dt summary{cursor:pointer;user-select:none;list-style:none}
+    #sidepanel details.sp-dt img{width:100%;height:auto;border:1px solid rgba(0,0,0,.1);
+      border-radius:.4rem;margin-top:.35rem}
   </style>
 </head>
 <body>
+  <!-- Ezeket a main.js úgyis kezeli; itt előkészítjük, hogy biztos legyen -->
+  <div id="legend"></div>
   <div id="tooltip"></div>
+
+  <div id="sidepanel">
+    <div class="sp-hdr">
+      <div class="sp-title"></div>
+      <div class="sp-pill"></div>
+      <button class="sp-close" title="Bezár">✕</button>
+    </div>
+    <div class="sp-body">
+      <div class="sp-metric">
+        <div class="k">Lokális s</div>
+        <div class="v"><span class="sval">–</span></div>
+        <div class="bar"><div class="fill"></div></div>
+      </div>
+      <div class="sp-feats">
+        <div class="k">Top tényezők</div>
+        <ul class="feat-list"></ul>
+      </div>
+      <details class="sp-dt">
+        <summary>Klaszter <span class="cid">–</span> döntésfa</summary>
+        <img class="dt-img" alt="">
+      </details>
+      <div class="sp-actions" style="display:flex;justify-content:flex-end;margin-top:.6rem">
+        <button class="sp-back">Vissza</button>
+      </div>
+    </div>
+  </div>
+
+  <noscript>Ehhez a demóhoz JavaScript szükséges.</noscript>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
