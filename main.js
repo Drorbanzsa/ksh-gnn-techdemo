@@ -352,6 +352,63 @@ function applyFilter(){
   }
 }
 
+// === Ország-nézet (HOME) tárolása + dőlés-zár és kamera tween ===
+const HOME = { pos: new THREE.Vector3(), target: new THREE.Vector3() };
+
+function lockTilt(lock) {
+  // Ország-nézet: teljesen szemből nézzük a "lapot"
+  const phi = Math.PI / 2;
+  if (lock) {
+    controls.minPolarAngle = phi - 0.001;  // ~90°
+    controls.maxPolarAngle = phi + 0.001;
+    controls.enableRotate  = false;        // ne forgatható legyen ország-nézetben
+  } else {
+    // Zoom-nézetben engedünk egy kicsi döntést
+    controls.minPolarAngle = Math.PI * 0.38;
+    controls.maxPolarAngle = Math.PI * 0.62;
+    controls.enableRotate  = true;
+  }
+}
+
+function easeInOut(t){ return t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+
+let camAnim = null;
+function tweenCamera(toPos, toTgt, dur=900){
+  camAnim = {
+    t0: performance.now(),
+    dur,
+    fromPos: camera.position.clone(),
+    fromTgt: controls.target.clone(),
+    toPos : toPos.clone(),
+    toTgt : toTgt.clone()
+  };
+}
+
+function goHome(instant=false){
+  lockTilt(true);
+  if (instant){
+    camera.position.copy(HOME.pos);
+    controls.target.copy(HOME.target);
+    controls.update();
+  }else{
+    tweenCamera(HOME.pos, HOME.target, 900);
+  }
+}
+
+function zoomToFeature(key, pad=1.6, dur=900){
+  const m = fillsByKey[key]; if (!m) return;
+  const box = new THREE.Box3().setFromObject(m);
+  const c = box.getCenter(new THREE.Vector3());
+  const s = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(s.x, s.y, s.z);
+  const fov = THREE.MathUtils.degToRad(camera.fov);
+  const camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * pad;
+  const pos  = new THREE.Vector3(c.x, c.y - camZ, camZ);
+
+  lockTilt(false);                // zoom-nézet: engedjük kicsit dönteni
+  tweenCamera(pos, c, dur);
+}
+
 /* -------------------- KAMERA IGAZÍTÁS + FLY TO -------------------- */
 fitGroup(content, camera, controls);
 function fitGroup(obj, camera, controls, offset=1.25){
@@ -381,6 +438,10 @@ function flyToBox(box, offset=1.15, duration=900){
   };
 }
 function flyToOverview(){ flyToBox(new THREE.Box3().setFromObject(content), 1.25, 800); }
+HOME.pos.copy(camera.position);
+HOME.target.copy(controls.target);
+controls.saveState();   // ha akarod, a controls.reset() is ezt fogja használni
+lockTilt(true);         // ország-nézetben fixen szemből
 
 /* -------------------- HOVER + CLICK → PANEL -------------------- */
 renderer.domElement.addEventListener('click', onClick);
@@ -537,6 +598,16 @@ function animate(){
     const target = new THREE.Vector3().lerpVectors(fly.fromT, fly.toT, ease);
     controls.target.copy(target); controls.update();
     if (a>=1) fly = null;
+  }
+
+  if (camAnim){
+  const k = (performance.now() - camAnim.t0) / camAnim.dur;
+  const t = Math.min(1, Math.max(0, k));
+  const e = easeInOut(t);
+  camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, e);
+  controls.target.lerpVectors (camAnim.fromTgt, camAnim.toTgt, e);
+  controls.update();
+  if (t >= 1) camAnim = null;
   }
 
   // ha panel nyitva, a hover ne írja felül a lockot
