@@ -1,7 +1,7 @@
-import * as THREE           from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { OrbitControls }    from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-import { SVGLoader }        from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/SVGLoader.js';
-import { mergeGeometries }  from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js';
+import * as THREE from 'three';
+import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { SVGLoader }      from 'three/addons/loaders/SVGLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
 // minden útvonal a main.js-hez képest (GH Pages-safe)
@@ -527,21 +527,6 @@ function closePanel(){
 
 // Esc-re is zárjuk, ez már nálad bent volt:
 window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
-
-
-// döntésfa PNG (V1) – a PNG-k a main.js mellett legyenek!
-const img = panel.querySelector('#sp-tree-img');
-if (cid!=null){
-  img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
-  img.alt = `Klaszter ${cid} döntésfa`;
-  img.style.display = '';
-  img.onerror = () => { img.style.display = 'none'; };
-} else {
-  img.removeAttribute('src');
-  img.style.display = 'none';
-}
-panel.classList.add('open');
-
 
 /* -------------------- ALIAS + CSV BETÖLTŐK -------------------- */
 function prettifyFeature(s){
