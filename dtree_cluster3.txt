@@ -1,0 +1,28 @@
+|--- aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam <= 0.20
+|   |--- felsofoku_tertiary_education_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany <= 0.33
+|   |   |--- helyi_iparuzesi_ado_ideiglenes_jelleggel_vegzett_tevekenyseg_utan_atlagos_mertek_nap_2019_telepules_1000_lakosra_juto_szam <= 0.24
+|   |   |   |--- szja_adoalapot_kepezo_jovedelem_mezogazdasagi_kistermelok_2019_telepules_ft_arany <= 0.36
+|   |   |   |   |--- legkozelebbi_legalabb_100_ezer_fos_varos_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules <= 0.12
+|   |   |   |   |   |--- mukodo_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus <= 0.39
+|   |   |   |   |   |   |--- class: 1
+|   |   |   |   |   |--- mukodo_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus >  0.39
+|   |   |   |   |   |   |--- class: 1
+|   |   |   |   |--- legkozelebbi_legalabb_100_ezer_fos_varos_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules >  0.12
+|   |   |   |   |   |--- class: 0
+|   |   |   |--- szja_adoalapot_kepezo_jovedelem_mezogazdasagi_kistermelok_2019_telepules_ft_arany >  0.36
+|   |   |   |   |--- class: 0
+|   |   |--- helyi_iparuzesi_ado_ideiglenes_jelleggel_vegzett_tevekenyseg_utan_atlagos_mertek_nap_2019_telepules_1000_lakosra_juto_szam >  0.24
+|   |   |   |--- class: 0
+|   |--- felsofoku_tertiary_education_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany >  0.33
+|   |   |--- aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam <= 0.14
+|   |   |   |--- class: 0
+|   |   |--- aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam >  0.14
+|   |   |   |--- class: 0
+|--- aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam >  0.20
+|   |--- mukodo_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus <= 0.15
+|   |   |--- class: 1
+|   |--- mukodo_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus >  0.15
+|   |   |--- kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos <= 0.00
+|   |   |   |--- class: 0
+|   |   |--- kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos >  0.00
+|   |   |   |--- class: 0

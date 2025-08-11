@@ -1,0 +1,66 @@
+{
+  "feature": "aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam",
+  "th": 0.203,
+  "left": {
+    "feature": "felsofoku_tertiary_education_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany",
+    "th": 0.328,
+    "left": {
+      "feature": "helyi_iparuzesi_ado_ideiglenes_jelleggel_vegzett_tevekenyseg_utan_atlagos_mertek_nap_2019_telepules_1000_lakosra_juto_szam",
+      "th": 0.24,
+      "left": {
+        "feature": "szja_adoalapot_kepezo_jovedelem_mezogazdasagi_kistermelok_2019_telepules_ft_arany",
+        "th": 0.364,
+        "left": {
+          "feature": "legkozelebbi_legalabb_100_ezer_fos_varos_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules",
+          "th": 0.122,
+          "left": {
+            "feature": "mukodo_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus",
+            "th": 0.389,
+            "left": {
+              "leaf": 1
+            },
+            "right": {
+              "leaf": 1
+            }
+          },
+          "right": {
+            "leaf": 0
+          }
+        },
+        "right": {
+          "leaf": 0
+        }
+      },
+      "right": {
+        "leaf": 0
+      }
+    },
+    "right": {
+      "feature": "aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam",
+      "th": 0.141,
+      "left": {
+        "leaf": 0
+      },
+      "right": {
+        "leaf": 0
+      }
+    }
+  },
+  "right": {
+    "feature": "mukodo_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus",
+    "th": 0.152,
+    "left": {
+      "leaf": 1
+    },
+    "right": {
+      "feature": "kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos",
+      "th": 0.001,
+      "left": {
+        "leaf": 0
+      },
+      "right": {
+        "leaf": 0
+      }
+    }
+  }
+}

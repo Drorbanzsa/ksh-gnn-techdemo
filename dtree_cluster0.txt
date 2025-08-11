@@ -1,0 +1,40 @@
+|--- 0_8_osztaly_arany_2016_mikorcenzus <= 0.64
+|   |--- szja_adoalapot_kepezo_jovedelem_mezogazdasagi_kistermelok_2019_telepules_ft_arany <= 0.19
+|   |   |--- class: 0
+|   |--- szja_adoalapot_kepezo_jovedelem_mezogazdasagi_kistermelok_2019_telepules_ft_arany >  0.19
+|   |   |--- class: 1
+|--- 0_8_osztaly_arany_2016_mikorcenzus >  0.64
+|   |--- mukodo_agrargazdasagi_szovetkezetek_szama_vallalkozasi_demografia_szerint_db_1000_lakosra_juto_szam_2016_mikorcenzus <= 0.35
+|   |   |--- aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam <= 0.11
+|   |   |   |--- class: 0
+|   |   |--- aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam >  0.11
+|   |   |   |--- erdoterulet_osszesen_2017_telepules_1000_lakosra_juto_szam <= 0.68
+|   |   |   |   |--- haziorvosok_2020_telepules_1000_lakosra_juto_szam <= 0.41
+|   |   |   |   |   |--- kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos <= 0.00
+|   |   |   |   |   |   |--- class: 0
+|   |   |   |   |   |--- kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos >  0.00
+|   |   |   |   |   |   |--- legkozelebbi_autopalya_csomopont_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules <= 0.20
+|   |   |   |   |   |   |   |--- erdoterulet_osszesen_2017_telepules_1000_lakosra_juto_szam <= 0.50
+|   |   |   |   |   |   |   |   |--- szakiskola_vagy_szakmunkaskepzo_vocational_or_apprentice_school_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany <= 0.63
+|   |   |   |   |   |   |   |   |   |--- class: 1
+|   |   |   |   |   |   |   |   |--- szakiskola_vagy_szakmunkaskepzo_vocational_or_apprentice_school_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany >  0.63
+|   |   |   |   |   |   |   |   |   |--- class: 1
+|   |   |   |   |   |   |   |--- erdoterulet_osszesen_2017_telepules_1000_lakosra_juto_szam >  0.50
+|   |   |   |   |   |   |   |   |--- class: 1
+|   |   |   |   |   |   |--- legkozelebbi_autopalya_csomopont_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules >  0.20
+|   |   |   |   |   |   |   |--- kozfoglalkoztatasban_reszt_vevo_jarasi_startmunka_mintaprogram_mezogazdasag_havi_adatok_eves_atlaga_2019_telepules_2019_ev_1000_lakos <= 0.23
+|   |   |   |   |   |   |   |   |--- class: 1
+|   |   |   |   |   |   |   |--- kozfoglalkoztatasban_reszt_vevo_jarasi_startmunka_mintaprogram_mezogazdasag_havi_adatok_eves_atlaga_2019_telepules_2019_ev_1000_lakos >  0.23
+|   |   |   |   |   |   |   |   |--- class: 0
+|   |   |   |   |--- haziorvosok_2020_telepules_1000_lakosra_juto_szam >  0.41
+|   |   |   |   |   |--- a_7_eves_es_idosebb_nepessegbol_egyetemi_foiskolai_vegzettsegu_oklevellel_fo_arany_2016_mikorcenzus <= 0.20
+|   |   |   |   |   |   |--- class: 0
+|   |   |   |   |   |--- a_7_eves_es_idosebb_nepessegbol_egyetemi_foiskolai_vegzettsegu_oklevellel_fo_arany_2016_mikorcenzus >  0.20
+|   |   |   |   |   |   |--- class: 1
+|   |   |   |--- erdoterulet_osszesen_2017_telepules_1000_lakosra_juto_szam >  0.68
+|   |   |   |   |--- class: 0
+|   |--- mukodo_agrargazdasagi_szovetkezetek_szama_vallalkozasi_demografia_szerint_db_1000_lakosra_juto_szam_2016_mikorcenzus >  0.35
+|   |   |--- 25_54_evesek_25_54_years_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany <= 0.53
+|   |   |   |--- class: 1
+|   |   |--- 25_54_evesek_25_54_years_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany >  0.53
+|   |   |   |--- class: 0

@@ -1,0 +1,16 @@
+|--- kozfoglalkoztatasban_reszt_vevo_orszagos_kozfoglalkoztatasi_program_havi_adatok_eves_atlaga_2019_telepules_2019_ev_1000_lakos <= 0.18
+|   |--- class: 0
+|--- kozfoglalkoztatasban_reszt_vevo_orszagos_kozfoglalkoztatasi_program_havi_adatok_eves_atlaga_2019_telepules_2019_ev_1000_lakos >  0.18
+|   |--- szakkozepiskola_technikum_vocational_secondary_school_specialised_technical_school_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany <= 0.19
+|   |   |--- class: 0
+|   |--- szakkozepiskola_technikum_vocational_secondary_school_specialised_technical_school_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany >  0.19
+|   |   |--- a_7_eves_es_idosebb_nepessegbol_egyetemi_foiskolai_vegzettsegu_oklevellel_fo_arany_2016_mikorcenzus <= 0.23
+|   |   |   |--- altalanos_iskola_8_osztalyanal_kevesebb_vegzettseggel_rendelkezo_nyilvantartott_allaskeresok_2020_telepules_1000_lakosra_juto_szam <= 0.40
+|   |   |   |   |--- mukodo_agrargazdasagi_szovetkezetek_szama_vallalkozasi_demografia_szerint_db_1000_lakosra_juto_szam_2016_mikorcenzus <= 0.14
+|   |   |   |   |   |--- class: 1
+|   |   |   |   |--- mukodo_agrargazdasagi_szovetkezetek_szama_vallalkozasi_demografia_szerint_db_1000_lakosra_juto_szam_2016_mikorcenzus >  0.14
+|   |   |   |   |   |--- class: 1
+|   |   |   |--- altalanos_iskola_8_osztalyanal_kevesebb_vegzettseggel_rendelkezo_nyilvantartott_allaskeresok_2020_telepules_1000_lakosra_juto_szam >  0.40
+|   |   |   |   |--- class: 0
+|   |   |--- a_7_eves_es_idosebb_nepessegbol_egyetemi_foiskolai_vegzettsegu_oklevellel_fo_arany_2016_mikorcenzus >  0.23
+|   |   |   |--- class: 0

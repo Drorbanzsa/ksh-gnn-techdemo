@@ -1,0 +1,73 @@
+{
+  "feature": "aprofalvak_aranya_500_fo_alatt_aprofalu_osszes_arany_2019",
+  "th": 0.201,
+  "left": {
+    "feature": "mukodo_agrargazdasagi_szovetkezetek_szama_vallalkozasi_demografia_szerint_db_1000_lakosra_juto_szam_2016_mikorcenzus",
+    "th": 0.436,
+    "left": {
+      "leaf": 0
+    },
+    "right": {
+      "leaf": 0
+    }
+  },
+  "right": {
+    "feature": "legkozelebbi_legalabb_100_ezer_fos_varos_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules",
+    "th": 0.074,
+    "left": {
+      "feature": "szakkozepiskola_technikum_vocational_secondary_school_specialised_technical_school_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany",
+      "th": 0.278,
+      "left": {
+        "leaf": 1
+      },
+      "right": {
+        "leaf": 0
+      }
+    },
+    "right": {
+      "feature": "aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam",
+      "th": 0.137,
+      "left": {
+        "leaf": 0
+      },
+      "right": {
+        "feature": "mukodo_tarsas_vallalkozasok_szama_a_mezogazdasag_erdogazdalkodas_halaszat_nemzetgazdasagi_agakban_teaor_08_a_gazdasagi_ag_vallalkozasi_demografia_szerint_gfo_11_gfo_14_db_1000_lakosra_juto_szam_2016_mikorcenzus",
+        "th": 0.175,
+        "left": {
+          "leaf": 0
+        },
+        "right": {
+          "feature": "aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam",
+          "th": 0.209,
+          "left": {
+            "feature": "kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos",
+            "th": 0.032,
+            "left": {
+              "leaf": 0
+            },
+            "right": {
+              "leaf": 1
+            }
+          },
+          "right": {
+            "feature": "lakonepesseg_15_64_evesek_dec_31_2020_telepules_15_64_evesek_aranya",
+            "th": 0.589,
+            "left": {
+              "feature": "aranyuk_az_osszes_allaskereson_belul_ez_a_mutato_osszes_allaskereso_180_napon_tuli_nyilvantartott_allaskeresok_osszesen_2020",
+              "th": 0.567,
+              "left": {
+                "leaf": 1
+              },
+              "right": {
+                "leaf": 1
+              }
+            },
+            "right": {
+              "leaf": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

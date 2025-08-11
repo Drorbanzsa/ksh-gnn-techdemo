@@ -1,0 +1,24 @@
+{
+  "feature": "felsofoku_tertiary_education_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany",
+  "th": 0.318,
+  "left": {
+    "leaf": 0
+  },
+  "right": {
+    "feature": "nepsuruseg_fo_km2_lakonepesseg_dec_31_terulet_2020",
+    "th": 0.111,
+    "left": {
+      "leaf": 0
+    },
+    "right": {
+      "feature": "epitett_lakasok_udulok_nelkul_2020_telepules_arany",
+      "th": 0.186,
+      "left": {
+        "leaf": 1
+      },
+      "right": {
+        "leaf": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "feature": "0_8_osztaly_arany_2016_mikorcenzus",
+  "th": 0.638,
+  "left": {
+    "feature": "szja_adoalapot_kepezo_jovedelem_mezogazdasagi_kistermelok_2019_telepules_ft_arany",
+    "th": 0.195,
+    "left": {
+      "leaf": 0
+    },
+    "right": {
+      "leaf": 1
+    }
+  },
+  "right": {
+    "feature": "mukodo_agrargazdasagi_szovetkezetek_szama_vallalkozasi_demografia_szerint_db_1000_lakosra_juto_szam_2016_mikorcenzus",
+    "th": 0.351,
+    "left": {
+      "feature": "aktiv_foglalkoztataspolitikai_eszkozzel_tamogatottak_2020_telepules_1000_lakosra_juto_szam",
+      "th": 0.108,
+      "left": {
+        "leaf": 0
+      },
+      "right": {
+        "feature": "erdoterulet_osszesen_2017_telepules_1000_lakosra_juto_szam",
+        "th": 0.68,
+        "left": {
+          "feature": "haziorvosok_2020_telepules_1000_lakosra_juto_szam",
+          "th": 0.414,
+          "left": {
+            "feature": "kulfoldi_vendegejszakak_szama_ejszaka_2019_ev_1000_lakos",
+            "th": 0.001,
+            "left": {
+              "leaf": 0
+            },
+            "right": {
+              "feature": "legkozelebbi_autopalya_csomopont_tavolsaga_kozuton_a_leggyorsabb_uton_2019_telepules",
+              "th": 0.197,
+              "left": {
+                "feature": "erdoterulet_osszesen_2017_telepules_1000_lakosra_juto_szam",
+                "th": 0.505,
+                "left": {
+                  "feature": "szakiskola_vagy_szakmunkaskepzo_vocational_or_apprentice_school_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany",
+                  "th": 0.634,
+                  "left": {
+                    "leaf": 1
+                  },
+                  "right": {
+                    "leaf": 1
+                  }
+                },
+                "right": {
+                  "leaf": 1
+                }
+              },
+              "right": {
+                "feature": "kozfoglalkoztatasban_reszt_vevo_jarasi_startmunka_mintaprogram_mezogazdasag_havi_adatok_eves_atlaga_2019_telepules_2019_ev_1000_lakos",
+                "th": 0.227,
+                "left": {
+                  "leaf": 1
+                },
+                "right": {
+                  "leaf": 0
+                }
+              }
+            }
+          },
+          "right": {
+            "feature": "a_7_eves_es_idosebb_nepessegbol_egyetemi_foiskolai_vegzettsegu_oklevellel_fo_arany_2016_mikorcenzus",
+            "th": 0.202,
+            "left": {
+              "leaf": 0
+            },
+            "right": {
+              "leaf": 1
+            }
+          }
+        },
+        "right": {
+          "leaf": 0
+        }
+      }
+    },
+    "right": {
+      "feature": "25_54_evesek_25_54_years_a_nyilvantartott_allaskeresok_zaronapi_szama_2021_arany",
+      "th": 0.528,
+      "left": {
+        "leaf": 1
+      },
+      "right": {
+        "leaf": 0
+      }
+    }
+  }
+}
