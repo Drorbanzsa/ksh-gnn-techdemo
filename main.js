@@ -3,7 +3,8 @@ import { OrbitControls }  from 'https://unpkg.com/three@0.157.0/examples/jsm/con
 import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
-// *** MINDENT ettől a fájltól relatívan oldunk fel (stabil GH Pages alatt is) ***
+
+// minden útvonal a main.js-hez képest
 const fromHere = (p) => new URL(p, import.meta.url).href;
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
@@ -11,10 +12,10 @@ const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
 
-const OX = 19.5, OY = 47.0;        // ország-közép (WGS84)
-const SX = 6.5,  SY = 9.5;         // lon/lat → vászon skála
-const ICON_SCALE_XY = 0.006;       // ikon alapterület
-const ICON_SCALE_Z  = 0.003;       // ikon vastagság
+const OX = 19.5, OY = 47.0;
+const SX = 6.5,  SY = 9.5;
+const ICON_SCALE_XY = 0.006;
+const ICON_SCALE_Z  = 0.003;
 
 const toXY = (lon, lat, z=0) => [ (lon-OX)*SX, (lat-OY)*SY, z ];
 function lonLatOfFeature(f){
@@ -179,7 +180,7 @@ const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(b
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
 
 /* -------------------- POLIGON‑KITÖLTÉS -------------------- */
-let fillsByKey = drawFills(geo, fillsGroup);
+const fillsByKey = drawFills(geo, fillsGroup);
 function drawFills(geojson, group){
   const map = {};
   const trimClose = (ring)=>{
@@ -445,7 +446,7 @@ function flyToBox(box, offset=1.10, duration=900){
   };
 }
 
-// indulás: számoljuk ki az ország‑nézetet és álljunk be rá
+// indulás: ország‑nézet
 NATION = computeNationView(content, camera);
 goNationView(true);
 HOME.pos.copy(camera.position);
@@ -458,8 +459,7 @@ function onClick(){
   const hits = raycaster.intersectObjects(fillsGroup.children, true);
   if (!hits.length) return;
   const fill = hits[0].object;
-  const key  = fill.userData.key;
-  openPanel(key, fill);
+  openPanel(fill.userData.key, fill);
 }
 
 /* -------------------- PANEL LOGIKA -------------------- */
@@ -467,26 +467,13 @@ const panel = document.getElementById('sidepanel');
 
 function openPanel(name, fillObj){
   detailLock = name;
-  // dtree PNG (statikus V1)
-  const im = iconByKey[name];
-  const cid = im?.userData?.cluster ?? null;
 
-  const dt = panel.querySelector('details.sp-dt');
-  if (dt) {
-    dt.querySelector('.cid').textContent = (cid ?? '–');
-    const img = dt.querySelector('img.dt-img');
-    img.src = fromHere(`dtree_cluster${cid}_FULL.png`); // <— FIG/ folder!
-    img.alt = `Klaszter ${cid} döntésfa`;
-  }
-
-  panel.classList.add('open');
-}
   // kamera zoom az adott poligonra + döntés engedélyezése
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false);
   flyToBox(box, 1.05, 900);
 
-  // panel tartalom
+  // tartalom
   const im  = iconByKey[name];
   const cid = im?.userData?.cluster ?? null;
 
@@ -521,19 +508,20 @@ function openPanel(name, fillObj){
     const li = document.createElement('li'); li.textContent = '–'; UL.appendChild(li);
   }
 
-  // döntésfa PNG (V1)
+  // döntésfa PNG (V1) – a PNG-k a main.js mellett legyenek!
   const img = panel.querySelector('#sp-tree-img');
   if (cid!=null){
-    img.src = `/dtree_cluster${cid}_FULL.png`;
+    img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
     img.alt = `Klaszter ${cid} döntésfa`;
     img.style.display = '';
+    img.onerror = () => { img.style.display = 'none'; }; // ha nincs PNG, ne villogjon 404
   } else {
     img.removeAttribute('src');
     img.style.display = 'none';
   }
 
   panel.classList.add('open');
-  }
+}
 
 function closePanel(){
   if (!panel.classList.contains('open')) return;
@@ -630,7 +618,7 @@ function animate(){
     if (a>=1) fly = null;
   }
 
-  // ha panel nyitva, a hover ne írja felül a lockot
+  // hover csak akkor, ha nincs panel lock
   const hoverEnabled = !detailLock;
 
   // 1) Raycast a járás-kitetöltésekre
@@ -642,13 +630,11 @@ function animate(){
     activeKey = fill.userData.key;
     renderer.domElement.style.cursor = 'pointer';
 
-    // poligon kiemelés
     fillsGroup.children.forEach(m=>{
       const isActive = m.userData.key === activeKey;
       m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
     });
 
-    // tooltip
     const im = iconByKey[activeKey];
     tooltip.style.display='block';
     tooltip.style.left = (pointerX+12)+'px';
@@ -663,7 +649,7 @@ function animate(){
     }
   }
 
-  // 2) ikon skálázás simítva (ha panel nyitva, csak a lockolt nő)
+  // 2) ikon skálázás simítva
   iconMeshes.forEach(m=>{
     const key = m.userData.key;
     const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
