@@ -5,29 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KSH GNN – Techdemó</title>
 
-  <!-- Three.js import map: a "three" modult innen töltjük -->
+  <!-- Three import map -->
   <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.157.0/build/three.module.js"
-    }
-  }
+  { "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }
   </script>
 
-  <!-- Turf: centroid számításhoz (globális 'turf') -->
+  <!-- Turf centroidhoz -->
   <script defer src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
   <style>
     html, body { height: 100%; margin: 0; }
-    canvas { display: block; } /* a WebGL canvas kitölti az oldalt */
+    canvas { display:block; }
     #tooltip{
-      position: fixed; display: none; pointer-events: none;
-      background: rgba(0,0,0,.85); color: #fff;
-      padding: .35rem .5rem; border-radius: .35rem;
-      font: 13px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif;
-      transform: translate(0,0);
-      box-shadow: 0 2px 10px rgba(0,0,0,.25);
-      white-space: nowrap;
+      position:fixed; display:none; pointer-events:none;
+      background:rgba(0,0,0,.85); color:#fff; padding:.35rem .5rem;
+      border-radius:.35rem; font:13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      box-shadow:0 2px 10px rgba(0,0,0,.25); white-space:nowrap;
     }
   </style>
 </head>
