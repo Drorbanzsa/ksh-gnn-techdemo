@@ -1,7 +1,7 @@
 import * as THREE from 'https://unpkg.com/three@0.157.0/build/three.module.js';
-import { OrbitControls }  from 'https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js';
-import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
-import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
+import { OrbitControls }  from 'https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js?module';
+import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js?module';
+import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js?module';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
 // minden útvonal a main.js-hez képest (GH Pages-safe)
