@@ -22,7 +22,7 @@ camera.position.set(0, -6, 4);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
-controls.autoRotate = true;
+controls.autoRotate = false;
 controls.autoRotateSpeed = 0.4;
 
 window.addEventListener('resize', ()=>{
@@ -74,6 +74,52 @@ for (const [cid, path] of Object.entries(ICON_FILES)) {
 
 // --- Adat betöltés ---
 const geo = await (await fetch('./clusters_k5.geojson')).json();
+
+// --- JÁRÁSHATÁROK KIRAJZOLÁSA ---
+drawBorders(geo);
+
+function drawBorders(geojson){
+  // lon/lat -> XY ugyanazzal a transzformmal, mint az ikonoknál
+  const toXY = (lon, lat) => ([
+    (lon - OX) * SX,
+    (lat - OY) * SY,
+    -0.02 // pici negatív Z, hogy ne "villogjon" az ikonokkal
+  ]);
+
+  // felgyűjtjük az összes szegmenst egyetlen vonal‑geometriába (gyorsabb)
+  const pos = [];
+
+  const pushRing = (ring) => {
+    // ring: [[lon,lat], [lon,lat], ...], az utolsó többnyire == első
+    for (let i = 1; i < ring.length; i++) {
+      const [x1, y1, z1] = toXY(ring[i-1][0], ring[i-1][1]);
+      const [x2, y2, z2] = toXY(ring[i  ][0], ring[i  ][1]);
+      pos.push(x1, y1, z1, x2, y2, z2);
+    }
+  };
+
+  for (const f of geojson.features){
+    const g = f.geometry;
+    if (!g) continue;
+    if (g.type === 'Polygon'){
+      for (const ring of g.coordinates) pushRing(ring);
+    } else if (g.type === 'MultiPolygon'){
+      for (const poly of g.coordinates) for (const ring of poly) pushRing(ring);
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+
+  const mat  = new THREE.LineBasicMaterial({
+    color: 0x555555, transparent: true, opacity: 0.6
+    // megjegyzés: a THREE linewidth böngészőkben jellemzően 1px
+  });
+
+  const borders = new THREE.LineSegments(geom, mat);
+  borders.renderOrder = -1; // a biztos kedvéért mögé rajzoljuk az ikonoknak
+  scene.add(borders);
+}
 
 // Lon/lat → lokális koordináta (kisebb skála!)
 const OX = 19.5, OY = 47.0;  // közép
