@@ -1,26 +1,16 @@
 <!doctype html>
 <html lang="hu">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Projekt címe</title>
-
-    <!-- opcionális stíluslapok -->
-    <link rel="stylesheet" href="./style.css">
-
-    <!-- opcionális importmap -->
-    <script type="importmap">
-    {
-      "imports": {
-        "példa": "./module.js"
-      }
-    }
-    </script>
-  </head>
-  <body>
-    <h1>Helló világ!</h1>
-
-    <!-- modulbetöltés -->
-    <script type="module" src="./main.js"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KSH GNN – Techdemó</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden}
+    canvas{display:block}
+  </style>
+</head>
+<body>
+  <!-- Minden UI elemet a main.js hoz létre -->
+  <script type="module" src="./main.js?v=2"></script>
+</body>
 </html>
