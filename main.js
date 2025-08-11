@@ -5,20 +5,19 @@ import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/ut
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
-const GEO_PATH = './clusters_k5.geojson';       // ha data/ alatt: 'data/clusters_k5.geojson'
-const SIL_PATH = './silhouette_local.csv';      // lokális s + top featek
-const ALIAS_PATH = './viz_data/alias_map.json'; // opcionális, ha van
+const GEO_PATH   = './clusters_k5.geojson';
+const SIL_PATH   = './silhouette_local.csv';
+const ALIAS_PATH = './alias_map.json';   // ha nincs, fallback {} lesz
 
-const OX = 19.5, OY = 47.0;   // ország-közép (WGS84)
-const SX = 6.5,  SY = 9.5;    // lon/lat → vászon skála
-const ICON_SCALE_XY = 0.006;  // ikon alapterület
-const ICON_SCALE_Z  = 0.003;  // ikon vastagság
+const OX = 19.5, OY = 47.0;        // ország-közép (WGS84)
+const SX = 6.5,  SY = 9.5;         // lon/lat → vászon skála
+const ICON_SCALE_XY = 0.006;       // ikon alapterület
+const ICON_SCALE_Z  = 0.003;       // ikon vastagság
 
 const toXY = (lon, lat, z=0) => [ (lon-OX)*SX, (lat-OY)*SY, z ];
 function lonLatOfFeature(f){
   const p = f.properties || {};
   if (p.cx!=null && p.cy!=null) return [p.cx, p.cy];
-  // fallback: külső gyűrű átlagpontja
   const g = f.geometry;
   let ring = null;
   if (g?.type === 'Polygon') ring = g.coordinates[0];
@@ -58,7 +57,7 @@ const dir = new THREE.DirectionalLight(0xffffff, 0.6);
 dir.position.set(2, -2, 3);
 scene.add(dir);
 
-/* -------------------- UI: TOOLTIP + LEGENDA + PANEL STÍLUS -------------------- */
+/* -------------------- UI: TOOLTIP + LEGENDA + PANEL -------------------- */
 ensureUI();
 function ensureUI(){
   // tooltip
@@ -96,6 +95,9 @@ function ensureUI(){
           <div class="k">Top tényezők</div>
           <ul class="feat-list"></ul>
         </div>
+        <div class="sp-tree">
+          <img id="sp-tree-img" alt="Klaszter döntésfa" />
+        </div>
         <div class="sp-actions">
           <button class="sp-back">Vissza</button>
         </div>
@@ -116,7 +118,7 @@ function ensureUI(){
       #legend .hdr{font-weight:600;margin-bottom:.2rem;}
       #legend button{margin-left:.35rem;font-size:12px}
 
-      #sidepanel{position:fixed;right:14px;top:14px;z-index:1000;width:320px;max-width:35vw;
+      #sidepanel{position:fixed;right:14px;top:14px;z-index:1000;width:340px;max-width:36vw;
         background:rgba(255,255,255,.96);border-radius:.75rem;box-shadow:0 12px 30px rgba(0,0,0,.2);
         transform:translateX(18px);opacity:0;pointer-events:none;transition:all .25s ease;}
       #sidepanel.open{transform:translateX(0);opacity:1;pointer-events:auto;}
@@ -126,12 +128,13 @@ function ensureUI(){
       #sidepanel .sp-pill{justify-self:start;font:12px/1.1 system-ui;padding:.1rem .45rem;border-radius:.5rem;
         color:#222;background:#eee;border:1px solid rgba(0,0,0,.15);}
       #sidepanel .sp-close{border:0;background:transparent;font:16px/1 monospace;cursor:pointer;opacity:.6}
-      #sidepanel .sp-body{padding:.2rem .9rem .8rem .9rem}
+      #sidepanel .sp-body{padding:.2rem .9rem .9rem .9rem}
       #sidepanel .sp-metric .k{font-weight:600;margin:.35rem 0 .15rem}
       #sidepanel .bar{height:6px;background:#eee;border-radius:999px;overflow:hidden;margin-top:.3rem}
       #sidepanel .bar .fill{height:100%;width:0;background:linear-gradient(90deg,#ff6b6b,#ffd166,#06d6a0)}
       #sidepanel .feat-list{margin:.25rem 0 0 .9rem;padding:0}
       #sidepanel .feat-list li{margin:.15rem 0}
+      #sidepanel .sp-tree img{width:100%;display:block;margin:.65rem 0 .25rem;border-radius:.4rem;border:1px solid rgba(0,0,0,.1)}
       #sidepanel .sp-actions{display:flex;justify-content:flex-end;margin-top:.6rem}
       #sidepanel .sp-actions .sp-back{border:1px solid rgba(0,0,0,.2);background:#fff;border-radius:.5rem;
         padding:.35rem .6rem;cursor:pointer}
@@ -153,10 +156,12 @@ window.addEventListener('pointermove', e=>{
 });
 window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
 
-/* >>> előre deklaráljuk, hogy applyFilter() és panel‑logika lássa <<< */
-let activeKey = null;
-let detailLock = null;         // ha panel nyitva: itt tároljuk a fixált járást
-let fly = null;                // kamera animáció állapota
+/* -------------------- ÁLLAPOTOK -------------------- */
+let activeKey = null;        // hoverelt járás
+let detailLock = null;       // panel nyitva → lockolt járás
+let fly = null;              // kamera „fly to” állapot
+let NATION = null;           // ország-nézet paraméterei
+const HOME = { pos: new THREE.Vector3(), target: new THREE.Vector3() };
 
 /* -------------------- ADATOK BETÖLTÉSE -------------------- */
 const [geo, META, ALIAS] = await Promise.all([
@@ -170,12 +175,18 @@ const content    = new THREE.Group(); scene.add(content);
 const fillsGroup = new THREE.Group(); fillsGroup.renderOrder = -2; content.add(fillsGroup);
 const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(bordersGrp);
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
-const NATION = computeNationView(content, camera);
-goNationView(true);   // induláskor felülnézetbe állunk
 
 /* -------------------- POLIGON‑KITÖLTÉS -------------------- */
-drawFills(geo, fillsGroup);
+let fillsByKey = drawFills(geo, fillsGroup);
 function drawFills(geojson, group){
+  const map = {};
+  const trimClose = (ring)=>{
+    if (!ring?.length) return [];
+    const last = ring[ring.length-1], first = ring[0];
+    const same = last && first && last[0]===first[0] && last[1]===first[1];
+    return same ? ring.slice(0,-1) : ring.slice();
+  };
+
   for(const f of geojson.features){
     const cid  = f.properties.cluster;
     const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
@@ -208,20 +219,11 @@ function drawFills(geojson, group){
       const mesh = new THREE.Mesh(geom, mat);
       mesh.userData = { key:name, cluster:cid, baseOpacity:0.28, baseColor: color.clone() };
       group.add(mesh);
+
+      if (!map[name]) map[name] = mesh;  // több poligon is tartozhat egy névhez
     }
   }
-    // középpont elmentése későbbi fókuszhoz
-    const bb = new THREE.Box3().setFromObject(mesh);
-    const ctr = bb.getCenter(new THREE.Vector3());
-    ctr.z = 0; // síkra igazítjuk
-    mesh.userData.center = ctr;
-
-  function trimClose(ring){
-    if (!ring?.length) return [];
-    const last = ring[ring.length-1], first = ring[0];
-    const same = last && first && last[0]===first[0] && last[1]===first[1];
-    return same ? ring.slice(0,-1) : ring.slice();
-  }
+  return map;
 }
 
 /* -------------------- HATÁRVONALAK -------------------- */
@@ -237,7 +239,7 @@ function drawBorders(geojson, group){
   };
   for (const f of geojson.features){
     const g = f.geometry; if (!g) continue;
-    if (g.type==='Polygon')          for (const r of g.coordinates) pushRing(r);
+    if (g.type==='Polygon')           for (const r of g.coordinates) pushRing(r);
     else if (g.type==='MultiPolygon') for (const p of g.coordinates) for (const r of p) pushRing(r);
   }
   const geom = new THREE.BufferGeometry();
@@ -265,13 +267,12 @@ for (const f of geo.features){
   const [X,Y,Z]   = toXY(lon, lat, 0);
   mesh.position.set(X,Y,Z);
 
-  // smooth skálázás állapot + felirat klaszternévvel
   mesh.userData = {
     key: name,
     cluster: cid,
     label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-    s: 1.0,   // aktuális skála
-    t: 1.0    // cél skála
+    s: 1.0,  // aktuális skála
+    t: 1.0   // cél skála
   };
   mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
 
@@ -360,83 +361,76 @@ function applyFilter(){
   }
 }
 
-// === Ország-nézet (HOME) tárolása + dőlés-zár és kamera tween ===
-const HOME = { pos: new THREE.Vector3(), target: new THREE.Vector3() };
-
-function lockTilt(lock) {
-  // Ország-nézet: teljesen szemből nézzük a "lapot"
-  const phi = Math.PI / 2;
-  if (lock) {
-    controls.minPolarAngle = phi - 0.001;  // ~90°
-    controls.maxPolarAngle = phi + 0.001;
-    controls.enableRotate  = false;        // ne forgatható legyen ország-nézetben
-  } else {
-    // Zoom-nézetben engedünk egy kicsi döntést
-    controls.minPolarAngle = Math.PI * 0.38;
-    controls.maxPolarAngle = Math.PI * 0.62;
-    controls.enableRotate  = true;
-  }
-}
-
-function easeInOut(t){ return t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
-
-let camAnim = null;
-function tweenCamera(toPos, toTgt, dur=900){
-  camAnim = {
-    t0: performance.now(),
-    dur,
-    fromPos: camera.position.clone(),
-    fromTgt: controls.target.clone(),
-    toPos : toPos.clone(),
-    toTgt : toTgt.clone()
-  };
-}
-
-function goHome(instant=false){
-  lockTilt(true);
-  if (instant){
-    camera.position.copy(HOME.pos);
-    controls.target.copy(HOME.target);
-    controls.update();
-  }else{
-    tweenCamera(HOME.pos, HOME.target, 900);
-  }
-}
-
-function zoomToFeature(key, pad=1.6, dur=900){
-  const m = fillsByKey[key]; if (!m) return;
-  const box = new THREE.Box3().setFromObject(m);
-  const c = box.getCenter(new THREE.Vector3());
-  const s = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(s.x, s.y, s.z);
-  const fov = THREE.MathUtils.degToRad(camera.fov);
-  const camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * pad;
-  const pos  = new THREE.Vector3(c.x, c.y - camZ, camZ);
-
-  lockTilt(false);                // zoom-nézet: engedjük kicsit dönteni
-  tweenCamera(pos, c, dur);
-}
-
-/* -------------------- KAMERA IGAZÍTÁS + FLY TO -------------------- */
-fitGroup(content, camera, controls);
-function fitGroup(obj, camera, controls, offset=1.25){
+/* -------------------- KAMERA SEGÉDEK -------------------- */
+function computeNationView(obj, camera, offset=1.25){
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z);
+
+  const maxDim = Math.max(size.x, size.y, Math.max(0.0001, size.z));
   const fov = THREE.MathUtils.degToRad(camera.fov);
-  const camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * offset;
-  camera.position.set(center.x, center.y - camZ, camZ);
-  camera.near = camZ/100; camera.far = camZ*100; camera.updateProjectionMatrix();
-  controls.target.copy(center); controls.update();
+  const camZ = Math.abs(maxDim / (2 * Math.tan(fov/2))) * offset;
+
+  return { center, camZ };
 }
-function flyToBox(box, offset=1.15, duration=900){
+
+// finom kamera tween pozíció + target között
+function tweenCamera(toPos, toTarget, ms=900, ease=(t)=>t*(2-t), onDone=()=>{}){
+  const fromPos    = camera.position.clone();
+  const fromTarget = controls.target.clone();
+  const t0 = performance.now();
+
+  function step(now){
+    const t = Math.min(1, (now - t0) / ms);
+    const k = ease(t);
+
+    camera.position.lerpVectors(fromPos, toPos, k);
+    controls.target.lerpVectors(fromTarget, toTarget, k);
+    controls.update();
+
+    if (t < 1) requestAnimationFrame(step);
+    else onDone();
+  }
+  requestAnimationFrame(step);
+}
+
+function lockTilt(lock) {
+  const phi = Math.PI / 2; // 90°
+  if (lock) {
+    controls.enableRotate = false;
+    controls.minPolarAngle = phi;
+    controls.maxPolarAngle = phi;
+  } else {
+    controls.enableRotate = true;
+    controls.minPolarAngle = Math.PI * 0.38;
+    controls.maxPolarAngle = Math.PI * 0.62;
+  }
+}
+
+// Ország-nézet (mindig szemből)
+function goNationView(immediate=false){
+  if (!NATION) NATION = computeNationView(content, camera);
+  const toPos    = new THREE.Vector3(NATION.center.x, NATION.center.y, NATION.camZ);
+  const toTarget = NATION.center.clone();
+
+  lockTilt(true);
+  if (immediate){
+    camera.position.copy(toPos);
+    controls.target.copy(toTarget);
+    controls.update();
+  }else{
+    tweenCamera(toPos, toTarget, 700, (t)=>t*(2-t), ()=>controls.update());
+  }
+}
+
+// „Fly to” egy bounding box‑ra – kis dőléssel
+function flyToBox(box, offset=1.10, duration=900){
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
   const fov = THREE.MathUtils.degToRad(camera.fov);
   const camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * offset;
-  const toPos = new THREE.Vector3(center.x, center.y - camZ, camZ);
+  const toPos = new THREE.Vector3(center.x, center.y - camZ, camZ); // enyhe döntés
   fly = {
     t:0, dur:duration,
     from: camera.position.clone(),
@@ -445,16 +439,16 @@ function flyToBox(box, offset=1.15, duration=900){
     toT:   center.clone()
   };
 }
-function flyToOverview(){ flyToBox(new THREE.Box3().setFromObject(content), 1.25, 800); }
+
+// indulás: számoljuk ki az ország‑nézetet és álljunk be rá
+NATION = computeNationView(content, camera);
+goNationView(true);
 HOME.pos.copy(camera.position);
 HOME.target.copy(controls.target);
-controls.saveState();   // ha akarod, a controls.reset() is ezt fogja használni
-lockTilt(true);         // ország-nézetben fixen szemből
 
 /* -------------------- HOVER + CLICK → PANEL -------------------- */
 renderer.domElement.addEventListener('click', onClick);
 function onClick(){
-  // ha nincs panel lock, a hovered poligonra zoomolunk
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(fillsGroup.children, true);
   if (!hits.length) return;
@@ -465,15 +459,17 @@ function onClick(){
 
 /* -------------------- PANEL LOGIKA -------------------- */
 const panel = document.getElementById('sidepanel');
+
 function openPanel(name, fillObj){
   detailLock = name;
 
-  // kamera zoom az adott poligon bounding box‑ára
+  // kamera zoom az adott poligonra + döntés engedélyezése
   const box = new THREE.Box3().setFromObject(fillObj);
+  lockTilt(false);
   flyToBox(box, 1.05, 900);
 
   // panel tartalom
-  const im = iconByKey[name];
+  const im  = iconByKey[name];
   const cid = im?.userData?.cluster ?? null;
 
   panel.querySelector('.sp-title').textContent = name;
@@ -487,8 +483,7 @@ function openPanel(name, fillObj){
   if (meta?.s!=null && isFinite(meta.s)){
     const s = Number(meta.s);
     sval.textContent = s.toFixed(3);
-    // silhouette -1..1 → 0..100% sáv
-    const pct = Math.max(0, Math.min(1, (s + 1) / 2)) * 100;
+    const pct = Math.max(0, Math.min(1, (s + 1) / 2)) * 100; // -1..1 → 0..100%
     fill.style.width = pct.toFixed(1)+'%';
   } else {
     sval.textContent = '–';
@@ -498,24 +493,36 @@ function openPanel(name, fillObj){
   const UL = panel.querySelector('.feat-list');
   UL.innerHTML = '';
   const tops = (meta?.tops && meta.tops.length) ? meta.tops.slice(0,3) : [];
-  tops.forEach(t=>{
-    const li = document.createElement('li');
-    li.textContent = prettifyFeature(t);
-    UL.appendChild(li);
-  });
-  if (!tops.length){
-    const li = document.createElement('li');
-    li.textContent = '–';
-    UL.appendChild(li);
+  if (tops.length){
+    tops.forEach(t=>{
+      const li = document.createElement('li');
+      li.textContent = prettifyFeature(t);
+      UL.appendChild(li);
+    });
+  } else {
+    const li = document.createElement('li'); li.textContent = '–'; UL.appendChild(li);
+  }
+
+  // döntésfa PNG (V1)
+  const img = panel.querySelector('#sp-tree-img');
+  if (cid!=null){
+    img.src = `/dtree_cluster${cid}_FULL.png`;
+    img.alt = `Klaszter ${cid} döntésfa`;
+    img.style.display = '';
+  } else {
+    img.removeAttribute('src');
+    img.style.display = 'none';
   }
 
   panel.classList.add('open');
 }
+
 function closePanel(){
   if (!panel.classList.contains('open')) return;
   panel.classList.remove('open');
   detailLock = null;
-  flyToOverview();
+  // vissza ország-nézetbe, szemből
+  goNationView(false);
 }
 
 /* -------------------- ALIAS + CSV BETÖLTŐK -------------------- */
@@ -539,47 +546,42 @@ async function loadMeta(path){
   try{
     const txt = await (await fetch(path)).text();
     return parseCSVToMap(txt);
-  }catch(e){
-    console.warn('Silhouette CSV betöltés nem sikerült:', e);
+  }catch{
     return new Map();
   }
 }
 function parseCSVToMap(text){
-  // autodetect delimiter
   const firstLine = text.split(/\r?\n/).find(l=>l.trim().length>0) || '';
   const cand = [',',';','\t','|'];
-  let d = ',';
-  let best = 0;
-  for (const c of cand){
-    const n = firstLine.split(c).length;
-    if (n > best){ best = n; d = c; }
-  }
+  let d = ',', best = 0;
+  for (const c of cand){ const n = firstLine.split(c).length; if (n>best){best=n; d=c;} }
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   if (!lines.length) return new Map();
 
   const header = lines.shift().split(d).map(x=>x.trim().replace(/^"|"$/g,''));
-  const idx = (nameRegexArr) => {
-    const i = header.findIndex(h=> nameRegexArr.some(rx => rx.test(h.toLowerCase())));
-    return i>=0 ? i : null;
-  };
-  const nameIdx = idx([/name/,/járás/,/jaras/,/district/]) ?? 0;
+  const idx = (regexes) => header.findIndex(h=> regexes.some(rx => rx.test(h.toLowerCase())));
+  const nameIdx = idx([/name/,/járás/,/jaras/,/district/]); 
   const silIdx  = idx([/sil/,/s_local/,/silhouette/,/^\s*s\s*$/]);
-  const topCols = header.map((h,i)=>({h,i})).filter(o=>/^top\d+/i.test(o.h)||/top.*feat/.test(o.h.toLowerCase())).map(o=>o.i);
+
+  const topCols = header.map((h,i)=>({h,i}))
+                        .filter(o=>/^top\d+/i.test(o.h)||/top.*feat/.test(o.h.toLowerCase()))
+                        .map(o=>o.i);
   const topStrIdx = idx([/top.*features?/]);
 
   const map = new Map();
   for(const line of lines){
     const cells = line.split(d).map(c=>c.trim().replace(/^"|"$/g,''));
-    const name = cells[nameIdx] || '';
+    const name = cells[(nameIdx>=0?nameIdx:0)] || '';
     if(!name) continue;
+
     let s = null;
-    if (silIdx!=null){
+    if (silIdx>=0){
       const v = cells[silIdx]?.replace(',','.');
       const num = parseFloat(v);
       if (isFinite(num)) s = num;
     }
     let tops = [];
-    if (topStrIdx!=null && cells[topStrIdx]){
+    if (topStrIdx>=0 && cells[topStrIdx]){
       tops = cells[topStrIdx].split(/[;|,]/).map(x=>x.trim()).filter(Boolean).slice(0,3);
     } else if (topCols.length){
       tops = topCols.map(i=>cells[i]).filter(Boolean).slice(0,3);
@@ -589,8 +591,10 @@ function parseCSVToMap(text){
   return map;
 }
 
-/* -------------------- ANIMATE -------------------- */
+/* -------------------- LOOP -------------------- */
+function easeInOutQuad(t){ return t<.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
 let last = performance.now();
+
 function animate(){
   const now = performance.now();
   const dt  = now - last; last = now;
@@ -601,21 +605,11 @@ function animate(){
   if (fly){
     fly.t += dt;
     const a = Math.min(1, fly.t / fly.dur);
-    const ease = a<.5 ? 2*a*a : 1 - Math.pow(-2*a+2,2)/2; // easeInOutQuad
-    camera.position.lerpVectors(fly.from, fly.to, ease);
-    const target = new THREE.Vector3().lerpVectors(fly.fromT, fly.toT, ease);
+    const k = easeInOutQuad(a);
+    camera.position.lerpVectors(fly.from, fly.to, k);
+    const target = new THREE.Vector3().lerpVectors(fly.fromT, fly.toT, k);
     controls.target.copy(target); controls.update();
     if (a>=1) fly = null;
-  }
-
-  if (camAnim){
-  const k = (performance.now() - camAnim.t0) / camAnim.dur;
-  const t = Math.min(1, Math.max(0, k));
-  const e = easeInOut(t);
-  camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, e);
-  controls.target.lerpVectors (camAnim.fromTgt, camAnim.toTgt, e);
-  controls.update();
-  if (t >= 1) camAnim = null;
   }
 
   // ha panel nyitva, a hover ne írja felül a lockot
@@ -651,74 +645,6 @@ function animate(){
     }
   }
 
-// ===== Kamera segédek =====
-function computeNationView(obj, camera, offset=1.25){
-  const box = new THREE.Box3().setFromObject(obj);
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-
-  const maxDim = Math.max(size.x, size.y, Math.max(0.0001, size.z));
-  const fov = THREE.MathUtils.degToRad(camera.fov);
-  const camZ = Math.abs(maxDim / (2 * Math.tan(fov/2))) * offset;
-
-  return { center, camZ };
-}
-
-// finom kamera tween pozíció + target között
-function tweenCamera(toPos, toTarget, ms=900, ease=(t)=>t*(2-t), onDone=()=>{}){
-  const fromPos    = camera.position.clone();
-  const fromTarget = controls.target.clone();
-  const t0 = performance.now();
-
-  function step(now){
-    const t = Math.min(1, (now - t0) / ms);
-    const k = ease(t);
-
-    camera.position.lerpVectors(fromPos, toPos, k);
-    controls.target.lerpVectors(fromTarget, toTarget, k);
-    controls.update();
-
-    if (t < 1) requestAnimationFrame(step);
-    else onDone();
-  }
-  requestAnimationFrame(step);
-}
-
-// TOP-DOWN ország-nézet (mindig szembe)
-function goNationView(immediate=false){
-  const toPos    = new THREE.Vector3(NATION.center.x, NATION.center.y, NATION.camZ);
-  const toTarget = NATION.center.clone();
-
-  // tilt lock: felülnézet
-  controls.enableRotate = false;
-  controls.minPolarAngle = Math.PI/2;
-  controls.maxPolarAngle = Math.PI/2;
-
-  if (immediate){
-    camera.position.copy(toPos);
-    controls.target.copy(toTarget);
-    controls.update();
-  }else{
-    tweenCamera(toPos, toTarget, 700, (t)=>t*(2-t), ()=>controls.update());
-  }
-}
-
-// DETAIL nézet (rázoom + finom döntés)
-function goDetailView(centerVec3){
-  const dist   = NATION.camZ * 0.55;      // kb. milyen közel menjünk
-  const tiltY  = dist * 0.55;              // mennyire dőljünk „dél felé”
-  const toPos  = new THREE.Vector3(centerVec3.x, centerVec3.y - tiltY, dist*0.75);
-  const target = new THREE.Vector3(centerVec3.x, centerVec3.y, 0);
-
-  // tilt engedélyezése csak részletes nézetben
-  controls.enableRotate   = true;
-  controls.minPolarAngle  = 0.45;          // ~26°
-  controls.maxPolarAngle  = 1.25;          // ~72°
-  controls.enablePan      = false;
-
-  tweenCamera(toPos, target, 850, (t)=>t<.5 ? 2*t*t : -1+(4-2*t)*t);
-}
-  
   // 2) ikon skálázás simítva (ha panel nyitva, csak a lockolt nő)
   iconMeshes.forEach(m=>{
     const key = m.userData.key;
