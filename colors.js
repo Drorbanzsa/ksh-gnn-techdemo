@@ -8,9 +8,9 @@ export const CLUSTER_COLORS = {
 
 // Ha Kecskemét „nem napernyős”, itt tudod áttetni az ikon-mappinget
 export const ICON_FILES = {
-  0: "fogaskerek.svg",        // pl. agrár
+  0: "aso.svg",        // pl. agrár
   1: "ernyo.svg",  // ipari/vegyes
-  2: "aso.svg",      // városi/fejlett
+  2: "fogaskerek.svg",      // városi/fejlett
   3: "buza.svg",         // (volt 'ernyo', átírható)
   4: "gazdag.svg"       // turisztika/rekreáció
 };
