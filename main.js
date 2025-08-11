@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://unpkg.com/three@0.157.0/build/three.module.js';
 import { OrbitControls }  from 'https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js';
 import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
@@ -8,9 +8,20 @@ import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 const fromHere = (p) => new URL(p, import.meta.url).href;
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
+const fromHere = (p) => new URL(p, import.meta.url).href;
+
+// ha minden a gyökérben:
 const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
+
+// ikonok:
+const ICONS_ABS = Object.fromEntries(
+  Object.entries(ICON_FILES).map(([k, p]) => [k, fromHere(p)])
+);
+
+// döntésfa PNG a panelben:
+img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
 
 const OX = 19.5, OY = 47.0;
 const SX = 6.5,  SY = 9.5;
