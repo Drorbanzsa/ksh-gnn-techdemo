@@ -529,19 +529,19 @@ function closePanel(){
 window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
 
 
-  // döntésfa PNG (V1) – a PNG-k a main.js mellett legyenek!
-  const img = panel.querySelector('#sp-tree-img');
-  if (cid!=null){
-    img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
-    img.alt = `Klaszter ${cid} döntésfa`;
-    img.style.display = '';
-    img.onerror = () => { img.style.display = 'none'; };
-  } else {
-    img.removeAttribute('src');
-    img.style.display = 'none';
-  }
+// döntésfa PNG (V1) – a PNG-k a main.js mellett legyenek!
+const img = panel.querySelector('#sp-tree-img');
+if (cid!=null){
+  img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
+  img.alt = `Klaszter ${cid} döntésfa`;
+  img.style.display = '';
+  img.onerror = () => { img.style.display = 'none'; };
+} else {
+  img.removeAttribute('src');
+  img.style.display = 'none';
+}
+panel.classList.add('open');
 
-  panel.classList.add('open');
 
 /* -------------------- ALIAS + CSV BETÖLTŐK -------------------- */
 function prettifyFeature(s){
