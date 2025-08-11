@@ -1,3 +1,4 @@
+import * as THREE from 'https://unpkg.com/three@0.157.0/build/three.module.js';
 import { OrbitControls }  from 'https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js';
 import { SVGLoader }      from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/SVGLoader.js';
 import { mergeGeometries } from 'https://unpkg.com/three@0.157.0/examples/jsm/utils/BufferGeometryUtils.js';
