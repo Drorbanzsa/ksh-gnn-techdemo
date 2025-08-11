@@ -23,7 +23,7 @@ for(const [cid,path] of Object.entries(ICON_FILES)){
   iconGeoms[cid]=new THREE.ExtrudeGeometry(shape,{depth:0.1,bevelEnabled:false});
 }
 
-const geo=await (await fetch('data/clusters_k5.geojson')).json();
+const geo=await (await fetch('./clusters_k5.geojson')).json();
 
 const tooltip=document.getElementById('tooltip');
 const raycaster=new THREE.Raycaster();
