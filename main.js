@@ -77,7 +77,7 @@ const geo = await (await fetch('./clusters_k5.geojson')).json();
 
 // Lon/lat → lokális koordináta (kisebb skála!)
 const OX = 19.5, OY = 47.0;  // közép
-const SX = 2.0, SY = 3.0;    // skála – sokkal kisebb, hogy a kamera lássa
+
 
 function lonLatOfFeature(f) {
   const p = f.properties || {};
