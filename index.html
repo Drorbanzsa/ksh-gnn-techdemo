@@ -1,26 +1,26 @@
 <!doctype html>
 <html lang="hu">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Projekt címe</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KSH GNN – Techdemó</title>
+  <style>html,body{margin:0;height:100%;overflow:hidden} canvas{display:block}</style>
 
-    <!-- opcionális stíluslapok -->
-    <link rel="stylesheet" href="./style.css">
-
-    <!-- opcionális importmap -->
-    <script type="importmap">
-    {
-      "imports": {
-        "példa": "./module.js"
-      }
+  <!-- Import map: innentől a 'three' és a 'three/addons/' csupasz import névként használható -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
     }
-    </script>
-  </head>
-  <body>
-    <h1>Helló világ!</h1>
+  }
+  </script>
 
-    <!-- modulbetöltés -->
-    <script type="module" src="./main.js"></script>
-  </body>
+  <!-- opcionális: favikon 404 megszüntetésére -->
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <!-- csak EGY modul script! (cache-busterrel) -->
+  <script type="module" src="./main.js?v=7"></script>
+</body>
 </html>
