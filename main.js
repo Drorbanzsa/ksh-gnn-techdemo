@@ -200,6 +200,7 @@ function makeMaskGeometry(feature, cx, cy){
   }
   return geoms.length>1 ? mergeGeometries(geoms, true) : (geoms[0] ?? new THREE.PlaneGeometry(0,0));
 }
+let ORDER = 0;   // node-onként növeljük: maszk -> 2D -> 3D stabil sorrend
 
 // ========== INIT ==========
 async function init(){
@@ -243,6 +244,10 @@ node.add(maskMesh);
 
 node.userData.stRef = stRef;
 
+    // --- stabil rajzolási sorrend ehhez a járáshoz
+const baseOrder = 1000 + ORDER * 3;
+maskMesh.renderOrder = baseOrder;
+
 // bbox a sprite/3D illesztéshez (lokális koordináta!)
 maskGeom.computeBoundingBox();
 const mb = maskGeom.boundingBox;
@@ -277,6 +282,9 @@ pmesh.renderOrder = 1;
 
 node.add(pmesh);
 node.userData.sprite = pmesh; // a későbbi kód "sprite" néven hivatkozik rá
+
+    pmaterial.depthTest = false;           // renderOrder határozzon
+pmesh.renderOrder    = baseOrder + 1;
 
     // 3D mesh (közelről)
 const geom3D = isoGeoms[cid];
@@ -335,6 +343,9 @@ Object.assign(node.userData, {
   requestAnimationFrame(animate);
 }
 init().catch(console.error);
+
+mmat.depthTest   = false;              // hogy a renderOrder nyerjen
+mesh3D.renderOrder = baseOrder + 2;
 
 // ========== POLIGONOK ==========
 function drawFills(geojson, group){
