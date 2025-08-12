@@ -22,8 +22,6 @@ const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
 
-// --- ISO (közeli) ikonok fájlnevei – a gyökérben ---
-const ICON_FILES_ISO = { 0:'c0-iso.svg', 1:'c1-iso.svg', 2:'c2-iso.svg', 3:'c3-iso.svg', 4:'c4-iso.svg' };
 
 // távoli (ország-nézet) ikonok
 const ICONS_ABS     = Object.fromEntries(Object.entries(ICON_FILES)    .map(([k,p]) => [k, fromHere(p)]));
@@ -196,7 +194,6 @@ window.addEventListener('pointermove', e=>{
   mouse.x  = (e.clientX/innerWidth)*2-1;
   mouse.y  =-(e.clientY/innerHeight)*2+1;
 });
-window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
 
 /* -------------------- ÁLLAPOTOK -------------------- */
 let activeKey = null;        // hoverelt járás
