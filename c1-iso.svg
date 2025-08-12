@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C1 – Turizmus‑/üdülő‑öv (isometric)">
+  <title>C1 – Turizmus‑/üdülő‑öv (isometric)</title>
+  <desc>Isometrikus vízfelület + hegy + turisztikai pin – járás‑zoomhoz.</desc>
+  
+  <defs>
+    <linearGradient id="c1isoBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e9fbff"/>
+      <stop offset="100%" stop-color="#d6f5ff"/>
+    </linearGradient>
+    <filter id="ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"/>
+      <feOffset dx="0" dy="1.4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c1isoBg)"/>
+  <g transform="translate(128,120)">
+    <polygon points="-86,0 0,-54 86,0 0,54" fill="#a8e7ff" stroke="#89cfe9" stroke-width="2"/>
+    <path d="M-70,0 Q0,-22 70,0 Q0,22 -70,0 Z" fill="#78d5ff" opacity="0.95"/>
+    <g filter="url(#ds)">
+      <polygon points="-40,2 0,-24 40,2 0,8" fill="#8ac0a5" stroke="#75a893"/>
+      <polygon points="-12,-4 0,-16 12,-4 0,0" fill="#9dd0b6" stroke="#7fb59c"/>
+    </g>
+    <g transform="translate(36,-6)" filter="url(#ds)">
+      <path d="M0 0 a16 16 0 1 1 32 0 c0 13 -16 32 -16 32 S0 13 0 0z" fill="#ff6f6f" stroke="#cc5959"/>
+      <polygon points="16,7 18,12 24,13 19,17 20,23 16,20 12,23 13,17 8,13 14,12" fill="#fff7e0"/>
+    </g>
+  </g>
+
+</svg>

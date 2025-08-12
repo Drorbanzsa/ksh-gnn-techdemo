@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C0 – Falusi agrár‑periféria (isometric)">
+  <title>C0 – Falusi agrár‑periféria (isometric)</title>
+  <desc>Isometrikus falusi csempe házzal és mezősávokkal – járás‑zoomhoz.</desc>
+  
+  <defs>
+    <linearGradient id="c0bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f3fff2"/>
+      <stop offset="100%" stop-color="#e6fbe1"/>
+    </linearGradient>
+    <filter id="ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"/>
+      <feOffset dx="0" dy="1.4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c0bg)"/>
+  <g transform="translate(128,124)">
+    <polygon points="-86,0 0,-54 86,0 0,54" fill="#9bd180" stroke="#7fb565" stroke-width="2"/>
+    <path d="M-70,2 L0,-36 L70,2" fill="none" stroke="#e8f7e6" stroke-width="3"/>
+    <path d="M-70,20 L0,-18 L70,20" fill="none" stroke="#e8f7e6" stroke-width="3"/>
+    <!-- kis falusi ház -->
+    <g transform="translate(-18,6)" filter="url(#ds)">
+      <polygon points="-14,8 8,-6 30,8 8,22" fill="#fff3e6" stroke="#d3c2b3"/>
+      <polygon points="8,-18 30,-4 8,8 -14,-6" fill="#c95a50" stroke="#a4463e"/>
+      <rect x="2" y="2" width="12" height="14" fill="#8b5e3b" stroke="#6f4c31"/>
+    </g>
+  </g>
+
+</svg>

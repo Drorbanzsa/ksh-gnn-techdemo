@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C4 – Városi ipar‑szolgáltató központok (isometric)">
+  <title>C4 – Városi ipar‑szolgáltató központok (isometric)</title>
+  <desc>Isometrikus járás‑csempe felhőkarcolókkal és nappal – 3D-hatású.</desc>
+  
+  <defs>
+    <linearGradient id="c4isoSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d7ecff"/>
+      <stop offset="100%" stop-color="#edf7ff"/>
+    </linearGradient>
+    <radialGradient id="sun4i" cx="48" cy="48" r="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe17a"/>
+      <stop offset="65%" stop-color="#ffbe55"/>
+      <stop offset="100%" stop-color="#ffa046"/>
+    </radialGradient>
+    <filter id="ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"/>
+      <feOffset dx="0" dy="1.4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c4isoSky)"/>
+  <circle cx="48" cy="48" r="22" fill="url(#sun4i)" filter="url(#ds)"/>
+  <g transform="translate(128,124)">
+    <polygon points="-86,0 0,-54 86,0 0,54" fill="#9fb3c9" stroke="#7f98b2" stroke-width="2"/>
+    <!-- 3D-hatású tornyok -->
+    <g>
+      <path d="M-44,6 h28 v44 h-28 z" fill="#7ea6cf"/>
+      <path d="M-6,-12 h34 v62 h-34 z" fill="#6b93be"/>
+      <path d="M32,0 h34 v50 h-34 z" fill="#5f87b2"/>
+      <!-- tető élek -->
+      <path d="M-44,6 l14,-8 l14,8 M-6,-12 l17,-10 l17,10 M32,0 l17,-10 l17,10" stroke="#eaf4ff" stroke-width="2" fill="none"/>
+    </g>
+  </g>
+
+</svg>

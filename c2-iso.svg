@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C2 – Közmunka-intenzív periféria (isometric)">
+  <title>C2 – Közmunka‑intenzív periféria (isometric)</title>
+  <desc>Isometrikus csempe omladozó házzal: repedések, hiányzó cserepek, bedeszkázott ablak.</desc>
+  <defs>
+    <linearGradient id="c2isoBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff6e8"></stop>
+      <stop offset="100%" stop-color="#ffe9cf"></stop>
+    </linearGradient>
+    <filter id="c2ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"></feGaussianBlur>
+      <feOffset dx="0" dy="1.5"></feOffset>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"></feFuncA></feComponentTransfer>
+      <feMerge><feMergeNode></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c2isoBg)"></rect>
+  <g transform="translate(128,124)">
+    <polygon points="-86,0 0,-54 86,0 0,54" fill="#ffdba6" stroke="#e4c18b" stroke-width="2"></polygon>
+    <!-- ház -->
+    <g transform="translate(-10,-2)" filter="url(#c2ds)">
+      <!-- fal "front" -->
+      <polygon points="-22,10 10,-10 42,10 42,40 10,58 -22,40" fill="#efe6da" stroke="#cbb8a3"></polygon>
+      <!-- repedés -->
+      <path d="M-6,8 l6,6 -4,4 6,6 -2,5 6,5" stroke="#8a7361" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <!-- tető -->
+      <polygon points="10,-10 42,10 20,22 -12,2" fill="#9b5d55" stroke="#7f4b45"></polygon>
+      <!-- hiányzó cserepek -->
+      <rect x="8" y="-2" width="6" height="4" fill="#efe6da" opacity="0.9"></rect>
+      <rect x="18" y="2" width="6" height="4" fill="#efe6da" opacity="0.9"></rect>
+      <!-- kémény kicsit ferdén -->
+      <g transform="translate(24,-6) rotate(-12)">
+        <rect x="0" y="-6" width="7" height="12" fill="#805a52"></rect>
+        <rect x="-1" y="-8" width="9" height="3" fill="#6e4d46"></rect>
+      </g>
+      <!-- ablak bedeszkázva -->
+      <rect x="18" y="18" width="12" height="9" fill="#b7cfe6" stroke="#9bb6cc"></rect>
+      <rect x="16" y="16" width="18" height="3" transform="rotate(18 25 18)" fill="#b38254" stroke="#9a6e46"></rect>
+      <rect x="17" y="22" width="18" height="3" transform="rotate(-18 26 24)" fill="#b38254" stroke="#9a6e46"></rect>
+    </g>
+  </g>
+</svg>
