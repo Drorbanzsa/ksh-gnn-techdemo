@@ -32,23 +32,6 @@ const ICONS_ISO_ABS = Object.fromEntries(Object.entries(ICON_FILES_ISO).map(([k,
 const iconGeomsFlat = await loadIconGeoms(ICONS_ABS);
 const iconGeomsIso  = await loadIconGeoms(ICONS_ISO_ABS);
 
-// IKONOK (SVG → 3D)
-const iconMeshes = [];
-const iconByKey  = {};
-
-for (const f of geo.features){
-  const cid  = f.properties.cluster;
-  const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
-  const geom = iconGeomsFlat[cid];    // ← INDULÁSKOR FLAT
-  if (!geom) continue;
-
-  const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
-  const mesh = new THREE.Mesh(geom, mat);
-
-  // ... pozicionálás, userData, scale, csoportba rakás ...
-}
-
-
 const OX = 19.5, OY = 47.0;
 const SX = 6.5,  SY = 9.5;
 const ICON_SCALE_XY = 0.006;
