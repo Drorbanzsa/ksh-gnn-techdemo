@@ -263,15 +263,15 @@ node.userData.maskH = (mb.max.y - mb.min.y);
     node.add(sprite);
     node.userData.sprite = sprite;
     const pad = 0.88;                   // kb. 12% margó a széleken
-const asp = node.userData.asp || 1; // ikon képarány
-const W = node.userData.maskW || 1;
-const H = node.userData.maskH || 1;
-if (W && H){
-  let sw = W*pad, sh = H*pad;
+    const asp = node.userData.asp || 1; // ikon képarány
+    const W = node.userData.maskW || 1;
+    const H = node.userData.maskH || 1;
+    if (W && H){
+    let sw = W*pad, sh = H*pad;
   // tartsa az ikon képarányát a bbox-on belül
-  if (sw/sh > asp) { sh = H*pad; sw = sh*asp; }
-  else             { sw = W*pad; sh = sw/asp; }
-  sprite.scale.set(sw, sh, 1);
+    if (sw/sh > asp) { sh = H*pad; sw = sh*asp; }
+    else             { sw = W*pad; sh = sw/asp; }
+    sprite.scale.set(sw, sh, 1);
 }
 
     // 3D mesh (közelről)
