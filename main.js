@@ -659,5 +659,4 @@ function animate(){
   requestAnimationFrame(animate);
 }
 
-// ========== NATION VIEW helper ==========
-function goNationView(immediate=false){ /* fent */ }
+
