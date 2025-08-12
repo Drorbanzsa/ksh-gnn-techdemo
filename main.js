@@ -35,7 +35,7 @@ function lonLatOfFeature(f){
 const ICON_SCALE_XY = 0.006;
 const ICON_SCALE_Z  = 0.003;
 const SPRITE_PX = 36;                  // ha nincs bbox, px alapú fallback
-const ISO_SWITCH_DISTANCE = 9;         // ez alatt 3D-re vált
+const ISO_SWITCH_DISTANCE = 12;         // ez alatt 3D-re vált
 const FIT_OFFSET = 1.01;
 
 // ========== SCENE ==========
@@ -225,108 +225,115 @@ async function init(){
   drawFills(GEO, fillsGroup);
   drawBorders(GEO, bordersGrp);
 
-  for (const f of GEO.features){
-    const cid  = f.properties.cluster;
-    const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
+for (const f of GEO.features){
+  const cid  = f.properties.cluster;
+  const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
 
-    const node = new THREE.Object3D();
-    const [lon,lat] = lonLatOfFeature(f);
-    const [X,Y,Z]   = toXY(lon, lat, 0);
-    node.position.set(X,Y,Z);
+  // szülő node a járás középpontján
+  const node = new THREE.Object3D();
+  const [lon,lat] = lonLatOfFeature(f);
+  const [X,Y,Z]   = toXY(lon, lat, 0);
+  node.position.set(X,Y,Z);
 
-    // egyedi stencil ref ehhez a járáshoz
-    const stRef = (ST_REF % 255) + 1; ST_REF++;
+  // egyedi stencil referencia ehhez a járáshoz
+  const stRef = (ST_REF % 255) + 1; ST_REF++;
 
-    // maszk lokális geometriával
-    const maskGeom = makeMaskGeometry(f, X, Y);
-    const maskMat = new THREE.MeshBasicMaterial({ color:0x000000 });
-    maskMat.colorWrite   = false;             // csak stencilbe írjon
-    maskMat.transparent  = true;
-    maskMat.opacity      = 0.0;
-    maskMat.depthWrite   = false;
-    maskMat.depthTest    = false;             // biztosan írjon
-    maskMat.stencilWrite = true;
-    maskMat.stencilRef   = stRef;
-    maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
-    maskMat.stencilZPass = THREE.ReplaceStencilOp;
+  // maszkoló geometria (LOKÁLIS!) és anyag
+  const maskGeom = makeMaskGeometry(f, X, Y);
+  const maskMat  = new THREE.MeshBasicMaterial({ color:0x000000 });
+  maskMat.colorWrite   = false;
+  maskMat.transparent  = true;
+  maskMat.opacity      = 0.0;
+  maskMat.depthWrite   = false;
+  maskMat.depthTest    = false;                 // biztosan írjon a stencilbe
+  maskMat.stencilWrite = true;
+  maskMat.stencilRef   = stRef;
+  maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
+  maskMat.stencilZPass = THREE.ReplaceStencilOp;
 
-    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
-    const baseOrder = 1000 + ORDER * 3;
-    maskMesh.renderOrder = baseOrder;
-    node.add(maskMesh);
+  const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+  node.add(maskMesh);
 
-    // bbox a 2D/3D illesztéshez
-    maskGeom.computeBoundingBox();
-    const mb = maskGeom.boundingBox;
-    const maskW = (mb.max.x - mb.min.x);
-    const maskH = (mb.max.y - mb.min.y);
+  // stabil, egymáshoz képest fix rajzolási sorrend: maszk -> 2D -> 3D
+  // (minden járás külön "sávot" kap)
+  const baseOrder = 1000 + ORDER * 3;
+  ORDER++;                                  // <<< EZ HIÁNYZOTT
+  maskMesh.renderOrder = baseOrder;
 
-    // --- 2D "flat" ikon – plane a térképsíkon (Sprite helyett, így jól vág a stencil)
-    const tex = flatTextures[cid];
-    const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
+  // bbox a járásról (lokális) -> 2D/3D illesztés
+  maskGeom.computeBoundingBox();
+  const mb = maskGeom.boundingBox;
+  const maskW = (mb.max.x - mb.min.x);
+  const maskH = (mb.max.y - mb.min.y);
 
-    const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
-    pmaterial.stencilWrite = true;
-    pmaterial.stencilRef   = stRef;
-    pmaterial.stencilFunc  = THREE.EqualStencilFunc;
-    pmaterial.stencilZPass = THREE.KeepStencilOp;
-    pmaterial.depthTest    = false;           // renderOrder döntsön
+  // ---------- 2D: „flat” ikon (textúrázott sík), maszkkal kivágva ----------
+  const tex = flatTextures[cid];
+  const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
 
-    const pad = 0.88;                         // ~12% margó
-    let pw = maskW*pad, ph = maskH*pad;
-    if (pw/ph > asp) { ph = maskH*pad; pw = ph*asp; } else { pw = maskW*pad; ph = pw/asp; }
+  const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
+  pmaterial.depthTest    = false;            // renderOrder döntsön
+  pmaterial.stencilWrite = true;
+  pmaterial.stencilRef   = stRef;
+  pmaterial.stencilFunc  = THREE.EqualStencilFunc;
+  pmaterial.stencilZPass = THREE.KeepStencilOp;
 
-    const pgeom = new THREE.PlaneGeometry(pw, ph);
-    const pmesh = new THREE.Mesh(pgeom, pmaterial);
-    pmesh.position.z  = 0.0008;               // maszk fölé hajszálnyival
-    pmesh.renderOrder = baseOrder + 1;
-    node.add(pmesh);
+  // illesztés a járás bbox-ába, kis paddal
+  const pad = 0.88;
+  let pw = maskW*pad, ph = maskH*pad;
+  if (pw/ph > asp) { ph = maskH*pad; pw = ph*asp; } else { pw = maskW*pad; ph = pw/asp; }
 
-    // --- 3D ikon (SVG extrude) – ugyanazzal a maszkkal vágva
-    const geom3D = isoGeoms[cid];
-    const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
-    mmat.stencilWrite = true;
-    mmat.stencilRef   = stRef;
-    mmat.stencilFunc  = THREE.EqualStencilFunc;
-    mmat.stencilZPass = THREE.KeepStencilOp;
-    mmat.depthTest    = false;
+  const pgeom = new THREE.PlaneGeometry(pw, ph);
+  const pmesh = new THREE.Mesh(pgeom, pmaterial);
+  pmesh.position.z  = 0.0008;                 // maszk fölé hajszálnyival
+  pmesh.renderOrder = baseOrder + 1;          // maszk után
 
-    const mesh3D = new THREE.Mesh(geom3D, mmat);
+  node.add(pmesh);
 
-    // skála a járás rövidebb oldalához (~55%)
-    geom3D.computeBoundingBox?.();
-    const gb   = geom3D.boundingBox;
-    const gW   = (gb?.max.x ?? 1) - (gb?.min.x ?? 0);
-    const gH   = (gb?.max.y ?? 1) - (gb?.min.y ?? 0);
-    const gMax = Math.max(1e-6, gW, gH);
-    const boxMin = Math.min(maskW || 1, maskH || 1);
-    const target = boxMin * 0.55;
-    const s      = target / gMax;
-    const rz     = ICON_SCALE_Z / ICON_SCALE_XY;
-    mesh3D.scale.set(s, s, s*rz);
+  // ---------- 3D: „iso” ikon, maszkkal kivágva ----------
+  const geom3D = isoGeoms[cid];
+  const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+  mmat.stencilWrite = true;
+  mmat.stencilRef   = stRef;
+  mmat.stencilFunc  = THREE.EqualStencilFunc;
+  mmat.stencilZPass = THREE.KeepStencilOp;
 
-    mesh3D.position.z  = 0.02;                // picit a sík fölé
-    mesh3D.renderOrder = baseOrder + 2;
-    mesh3D.visible     = false;
-    node.add(mesh3D);
+  const mesh3D = new THREE.Mesh(geom3D, mmat);
 
-    // --- node meta
-    node.userData = {
-      key: name,
-      cluster: cid,
-      label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-      s: 1, t: 1, mode: 'flat',
-      sprite: pmesh,         // azért marad a név "sprite", a többi kód így hivatkozik rá
-      mesh:   mesh3D,
-      asp, stRef,
-      maskW, maskH
-    };
+  // skálázás: a járás rövidebb oldalának ~55%-ára
+  geom3D.computeBoundingBox();
+  const gb   = geom3D.boundingBox;
+  const gW   = (gb.max.x - gb.min.x);
+  const gH   = (gb.max.y - gb.min.y);
+  const gMax = Math.max(1e-6, gW, gH);
 
-    iconsGroup.add(node);
-    iconByKey[name] = node;
-    iconNodes.push(node);
-    ORDER++;                                  // következő node baseOrder-je feljebb megy
-  }
+  const target = Math.min(maskW, maskH) * 0.55;
+  const s      = target / gMax;
+  const rz     = ICON_SCALE_Z / ICON_SCALE_XY;   // a kívánt Z/XY arány
+
+  mesh3D.scale.set(s, s, s*rz);
+  mesh3D.position.z  = 0.02;                 // a sík fölé
+  mesh3D.visible     = false;                // zoomnál kapcsoljuk
+
+  node.add(mesh3D);
+
+  // ---------- meta ----------
+  node.userData = {
+    key: name,
+    cluster: cid,
+    label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
+    s: 1, t: 1, mode:'flat',
+    sprite: pmesh,            // így a meglévő kód „sprite”-ként kezeli
+    mesh:   mesh3D,
+    asp,
+    stRef,
+    maskW, maskH
+  };
+
+  iconsGroup.add(node);
+  iconByKey[name] = node;
+  iconNodes.push(node);
+}
+
 
   buildLegend(); 
   applyFilter();
