@@ -22,18 +22,33 @@ const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
 
-// távoli (ország-nézet) ikonok
-const ICONS_ABS = Object.fromEntries(
-  Object.entries(ICON_FILES).map(([k, p]) => [k, fromHere(p)])
-);
-// közeli (zoom) ikonok
-const ICONS_ISO_ABS = Object.fromEntries(
-  Object.entries(ICON_FILES_ISO).map(([k, p]) => [k, fromHere(p)])
-);
+// --- ISO (közeli) ikonok fájlnevei – a gyökérben ---
+const ICON_FILES_ISO = { 0:'c0-iso.svg', 1:'c1-iso.svg', 2:'c2-iso.svg', 3:'c3-iso.svg', 4:'c4-iso.svg' };
 
+// távoli (ország-nézet) ikonok
+const ICONS_ABS     = Object.fromEntries(Object.entries(ICON_FILES)    .map(([k,p]) => [k, fromHere(p)]));
+// közeli (zoom) ikonok
+const ICONS_ISO_ABS = Object.fromEntries(Object.entries(ICON_FILES_ISO).map(([k,p]) => [k, fromHere(p)]));
+
+// ⇩⇩ EZ MARADJON, és NE legyen külön "iconGeoms" még egyszer ⇩⇩
 const iconGeomsFlat = await loadIconGeoms(ICONS_ABS);
 const iconGeomsIso  = await loadIconGeoms(ICONS_ISO_ABS);
 
+// IKONOK (SVG → 3D)
+const iconMeshes = [];
+const iconByKey  = {};
+
+for (const f of geo.features){
+  const cid  = f.properties.cluster;
+  const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
+  const geom = iconGeomsFlat[cid];    // ← INDULÁSKOR FLAT
+  if (!geom) continue;
+
+  const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+  const mesh = new THREE.Mesh(geom, mat);
+
+  // ... pozicionálás, userData, scale, csoportba rakás ...
+}
 
 
 const OX = 19.5, OY = 47.0;
@@ -312,14 +327,27 @@ async function loadIconGeoms(map){
   for (const [cid, path] of Object.entries(map)){
     try{
       const svgData = await loader.loadAsync(path);
+
+      // Sok SVG-ben fill="url(#...)" → szín-parszolási warning. Semlegesítjük:
+      for (const p of svgData.paths){
+        try {
+          if (p?.userData?.style?.fill && String(p.userData.style.fill).startsWith('url(')) {
+            p.userData.style.fill = '#000';
+          }
+          p.color.set('#000'); // mindegyik rész fekete – a MeshStandardMaterial színe fog számítani
+        } catch {}
+      }
+
       const shapes = [];
       for (const p of svgData.paths) shapes.push(...SVGLoader.createShapes(p));
+
       let geom;
       if (shapes.length){
         const parts = shapes.map(s => new THREE.ExtrudeGeometry(s, { depth:0.12, bevelEnabled:false }));
-        geom = mergeGeometries(parts, true); geom.center();
-      }else{
-        console.warn('SVG nem adott ki shape-et, fallback henger:', path);
+        geom = mergeGeometries(parts, true);
+        geom.center();
+      } else {
+        // fallback, ha valamiért nem jön shape
         geom = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
       }
       out[cid] = geom;
@@ -330,6 +358,7 @@ async function loadIconGeoms(map){
   }
   return out;
 }
+
 
 /* -------------------- LEGENDA + SZŰRŐ -------------------- */
 const ACTIVE = new Set(Object.keys(CLUSTER_LABELS).map(Number)); // kezdetben mind aktív
@@ -435,13 +464,18 @@ function setIconGeometry(name, mode='flat'){
   const m = iconByKey[name];
   if (!m) return;
   const cid = m.userData.cluster;
-  if (mode === 'iso' && iconGeomsIso[cid])      m.geometry = iconGeomsIso[cid];
-  else if (iconGeomsFlat[cid])                  m.geometry = iconGeomsFlat[cid];
+  const next = (mode === 'iso' ? iconGeomsIso[cid] : iconGeomsFlat[cid]);
+  if (!next) return;
+  // (opcionális) a régi geometriát takaríthatod, ha nagyon sokat kapcsolgatsz:
+  // m.geometry.dispose();
+  m.geometry = next;
   m.geometry.computeBoundingBox?.();
   m.geometry.computeBoundingSphere?.();
 }
-const showIso  = (name)=> setIconGeometry(name,'iso');
-const showFlat = (name)=> setIconGeometry(name,'flat');
+
+function showIso(name){  setIconGeometry(name, 'iso');  }
+function showFlat(name){ setIconGeometry(name, 'flat'); }
+
 
 // Ország-nézet (mindig szemből)
 function goNationView(immediate=false){
