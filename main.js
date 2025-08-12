@@ -33,6 +33,9 @@ const ICONS_ISO_ABS = Object.fromEntries(
 
 const iconGeomsFlat = await loadIconGeoms(ICONS_ABS);
 const iconGeomsIso  = await loadIconGeoms(ICONS_ISO_ABS);
+const svgData = await loader.loadAsync(path);
+// színt kényszerítünk, hogy a loader ne próbálja a url(#...) dolgokat színnek értelmezni
+svgData.paths.forEach(p => { try{ p.color.set('#000'); } catch{} });
 
 
 const OX = 19.5, OY = 47.0;
@@ -277,14 +280,12 @@ function drawBorders(geojson, group){
 /* -------------------- IKONOK (SVG → 3D) -------------------- */
 const iconMeshes = [];
 const iconByKey  = {}; // NAME -> ikon mesh
-const iconGeoms = await loadIconGeoms(ICONS_ABS);
 
 for (const f of geo.features){
   const cid  = f.properties.cluster;
   const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
   const geom = iconGeomsFlat[cid];  // ország-nézetben a "flat" készlet megy
   if (!geom) continue;
-
   const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
   const mesh = new THREE.Mesh(geom, mat);
 
@@ -436,19 +437,13 @@ function setIconGeometry(name, mode='flat'){
   const m = iconByKey[name];
   if (!m) return;
   const cid = m.userData.cluster;
-  if (mode === 'iso' && iconGeomsIso[cid]) {
-    m.geometry = iconGeomsIso[cid];
-  } else if (iconGeomsFlat[cid]) {
-    m.geometry = iconGeomsFlat[cid];
-  }
-  // a skálát ne piszkáljuk, csak a geometriát cseréljük
+  if (mode === 'iso' && iconGeomsIso[cid])      m.geometry = iconGeomsIso[cid];
+  else if (iconGeomsFlat[cid])                  m.geometry = iconGeomsFlat[cid];
   m.geometry.computeBoundingBox?.();
   m.geometry.computeBoundingSphere?.();
 }
-
-function showIso(name){ setIconGeometry(name, 'iso'); }
-function showFlat(name){ setIconGeometry(name, 'flat'); }
-
+const showIso  = (name)=> setIconGeometry(name,'iso');
+const showFlat = (name)=> setIconGeometry(name,'flat');
 
 // Ország-nézet (mindig szemből)
 function goNationView(immediate=false){
@@ -496,9 +491,12 @@ function onClick(){
 /* -------------------- PANEL LOGIKA -------------------- */
 const panel = document.getElementById('sidepanel');
 function openPanel(name, fillObj){
+  // ha volt korábbi lock, előbb állítsuk vissza
+  if (detailLock && detailLock !== name) showFlat(detailLock);
   detailLock = name;
-  showIso(name);   // ⇦ a kiválasztott járás ikonja ISO (közeli) geóra vált
 
+  showIso(name);     // ⇦ itt kapcsolunk ISO‑ra
+  
   // kamera rázoom + enyhe döntés
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false);
@@ -556,11 +554,9 @@ function openPanel(name, fillObj){
 
 function closePanel(){
   if (!panel.classList.contains('open')) return;
-  // ha volt lockolt járás, állítsuk vissza a flat geót
-  if (detailLock) showFlat(detailLock);
+  if (detailLock) showFlat(detailLock);   // ⇦ vissza FLAT‑re
   panel.classList.remove('open');
   detailLock = null;
-  // vissza ország-nézetbe (felülnézet, fix dőlés)
   goNationView(false);
 }
 
@@ -653,6 +649,12 @@ function animate(){
     controls.target.copy(target); controls.update();
     if (a>=1) fly = null;
   }
+// csere zoom-küszöbre
+if (detailLock){
+  const d = camera.position.distanceTo(controls.target);
+  if (d < 9) showIso(detailLock);
+  else       showFlat(detailLock);
+}
 
   // hover csak akkor, ha nincs panel lock
   const hoverEnabled = !detailLock;
