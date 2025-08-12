@@ -241,9 +241,9 @@ for (const f of GEO.features){
   // maszkoló geometria (LOKÁLIS!) és anyag
   const maskGeom = makeMaskGeometry(f, X, Y);
   const maskMat  = new THREE.MeshBasicMaterial({ color:0x000000 });
-  maskMat.colorWrite   = false;
-  maskMat.transparent  = true;
-  maskMat.opacity      = 0.0;
+  maskMat.colorWrite   = false;      // ettől lesz "láthatatlan"
+  maskMat.transparent  = false;      // OPÁK passzba kerüljön
+  maskMat.opacity      = 1.0;        // mindegy, colorWrite=false mellett
   maskMat.depthWrite   = false;
   maskMat.depthTest    = false;                 // biztosan írjon a stencilbe
   maskMat.stencilWrite = true;
@@ -298,6 +298,7 @@ for (const f of GEO.features){
   mmat.stencilZPass = THREE.KeepStencilOp;
 
   const mesh3D = new THREE.Mesh(geom3D, mmat);
+  mesh3D.renderOrder = baseOrder + 2;  // <<< EZ HIÁNYZOTT
 
   // skálázás: a járás rövidebb oldalának ~55%-ára
   geom3D.computeBoundingBox();
