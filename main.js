@@ -45,7 +45,7 @@ scene.background = new THREE.Color(0xffffff);
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 5000);
 camera.position.set(0, -6, 4);
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
+const renderer = new THREE.WebGLRenderer({ antialias:true, stencil:true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
@@ -170,6 +170,38 @@ const fillsGroup = new THREE.Group(); fillsGroup.renderOrder = -2; content.add(f
 const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(bordersGrp);
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
 
+// --- Stencil maszk a járásokhoz
+let ST_REF = 1;             // 1..255
+const MASK_Z = 0.0005;      // a térkép fölé picit
+
+function makeMaskGeometry(feature){
+  const ringsets = [];
+  const g = feature.geometry;
+  if (!g) return new THREE.PlaneGeometry(0,0);
+  if (g.type==='Polygon')           ringsets.push(g.coordinates);
+  else if (g.type==='MultiPolygon') ringsets.push(...g.coordinates);
+
+  const geoms = [];
+  const toV2 = ([x,y]) => new THREE.Vector2(...toXY(x,y).slice(0,2));
+
+  for (const rings of ringsets){
+    if (!rings?.length) continue;
+    const outer = rings[0].map(toV2);
+    if (THREE.ShapeUtils.isClockWise(outer)) outer.reverse();
+
+    const shape = new THREE.Shape(outer);
+    for (let i=1; i<rings.length; i++){
+      const hole = rings[i].map(toV2);
+      if (!THREE.ShapeUtils.isClockWise(hole)) hole.reverse();
+      shape.holes.push(new THREE.Path(hole));
+    }
+    const sg = new THREE.ShapeGeometry(shape);
+    sg.translate(0,0,MASK_Z);
+    geoms.push(sg);
+  }
+  return geoms.length>1 ? mergeGeometries(geoms, true) : (geoms[0] ?? new THREE.PlaneGeometry(0,0));
+}
+
 // ========== INIT ==========
 async function init(){
   const [geo, meta, alias, flatTextures, isoGeoms] = await Promise.all([
@@ -195,11 +227,37 @@ async function init(){
     node.position.set(X,Y,Z);
     node.userData = { key:name, cluster:cid, label:`${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`, s:1, t:1, mode:'flat', sprite:null, mesh:null, asp:1 };
 
+    // --- stencil maszk ehhez a járáshoz
+    const stRef = (ST_REF++ % 255) || 1;   // egyedi ref 1..255
+    const maskGeom = makeMaskGeometry(f);
+
+    const maskMat = new THREE.MeshBasicMaterial({ color:0x000000 });
+    maskMat.colorWrite   = false;      // csak stencilbe ír
+    maskMat.transparent  = true;
+    maskMat.opacity      = 0.0;
+    maskMat.depthWrite   = false;
+    maskMat.stencilWrite = true;
+    maskMat.stencilRef   = stRef;
+    maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
+    maskMat.stencilZPass = THREE.ReplaceStencilOp;
+
+    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+    maskMesh.renderOrder = 0;          // a sprite elé rajzolódjon
+    node.add(maskMesh);
+
+    node.userData.stRef = stRef;
+
     // 2D sprite (távolról)
     const tex = flatTextures[cid];
     const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
     node.userData.asp = asp;
     const smat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthWrite:false });
+    const smat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthWrite:false });
+    // sprite csak ott látszódjon, ahol a maszk rajzolt:
+    smat.stencilWrite = true;
+    smat.stencilRef   = stRef;
+    smat.stencilFunc  = THREE.EqualStencilFunc;
+    smat.stencilZPass = THREE.KeepStencilOp;
     const sprite = new THREE.Sprite(smat);
     sprite.renderOrder = 1;
     node.add(sprite);
