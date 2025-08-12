@@ -332,6 +332,7 @@ for (const f of GEO.features){
   iconsGroup.add(node);
   iconByKey[name] = node;
   iconNodes.push(node);
+  ORDER++;
 }
 
 
@@ -728,24 +729,28 @@ function animate(){
     if (a>=1) fly = null;
   }
 
-  const dCam = camera.position.distanceTo(controls.target);
-  if (detailLock){
-    if (dCam < ISO_SWITCH_DISTANCE) {
-      if (lastIsoKey && lastIsoKey !== detailLock) showFlat(lastIsoKey);
-      showIso(detailLock); lastIsoKey = detailLock;
-    } else {
-      showFlat(detailLock); lastIsoKey = null;
-    }
-  } else if (activeKey){
-    if (dCam < ISO_SWITCH_DISTANCE) {
-      if (lastIsoKey && lastIsoKey !== activeKey) showFlat(lastIsoKey);
-      showIso(activeKey); lastIsoKey = activeKey;
-    } else {
-      if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
-    }
+const dCam = camera.position.distanceTo(controls.target);
+
+// Panel nyitva → mindig 3D
+if (detailLock) {
+  if (lastIsoKey && lastIsoKey !== detailLock) showFlat(lastIsoKey);
+  showIso(detailLock);
+  lastIsoKey = detailLock;
+
+} else if (activeKey) {
+  // Hover esetén marad a távolság-küszöb
+  if (dCam < ISO_SWITCH_DISTANCE) {
+    if (lastIsoKey && lastIsoKey !== activeKey) showFlat(lastIsoKey);
+    showIso(activeKey);
+    lastIsoKey = activeKey;
   } else {
     if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
   }
+
+} else {
+  if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
+}
+
 
   // "grow/shrink" anim (hover/lock)
   for (const n of iconNodes){
