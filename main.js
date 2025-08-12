@@ -4,16 +4,18 @@ import { SVGLoader }      from 'three/addons/loaders/SVGLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
-// --- paths
+// --- elérési utak
 const fromHere = (p) => new URL(p, import.meta.url).href;
 const ICON_FILES_ISO = { 0:'c0-iso.svg', 1:'c1-iso.svg', 2:'c2-iso.svg', 3:'c3-iso.svg', 4:'c4-iso.svg' };
+
 const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
+
 const ICONS_ABS     = Object.fromEntries(Object.entries(ICON_FILES)    .map(([k,p]) => [k, fromHere(p)]));
 const ICONS_ISO_ABS = Object.fromEntries(Object.entries(ICON_FILES_ISO).map(([k,p]) => [k, fromHere(p)]));
 
-// --- map proj
+// --- térkép "projekció"
 const OX = 19.5, OY = 47.0, SX = 6.5, SY = 9.5;
 const toXY = (lon, lat, z=0) => [ (lon-OX)*SX, (lat-OY)*SY, z ];
 function lonLatOfFeature(f){
@@ -29,11 +31,11 @@ function lonLatOfFeature(f){
   return [OX, OY];
 }
 
-// --- icon sizing
+// --- ikon méretezés / váltás
 const ICON_SCALE_XY = 0.006;
 const ICON_SCALE_Z  = 0.003;
-const SPRITE_PX = 36;
-const ISO_SWITCH_DISTANCE = 9;
+const SPRITE_PX = 36;                  // ha nincs bbox, px alapú fallback
+const ISO_SWITCH_DISTANCE = 9;         // ez alatt 3D-re vált
 const FIT_OFFSET = 1.01;
 
 // ========== SCENE ==========
@@ -155,6 +157,9 @@ window.addEventListener('pointermove', e=>{
 // ========== ÁLLAPOT ==========
 let activeKey = null, detailLock = null, fly = null, NATION = null, lastIsoKey = null;
 
+// A szűrő aktív halmaza – FELÜL, hogy ne legyen TDZ hiba:
+const ACTIVE = new Set(Object.keys(CLUSTER_LABELS).map(Number));
+
 // ========== TÁROLÓK ==========
 let GEO = null, META = new Map(), ALIAS = {};
 const iconByKey = {};
@@ -166,9 +171,9 @@ const fillsGroup = new THREE.Group(); fillsGroup.renderOrder = -2; content.add(f
 const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(bordersGrp);
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
 
-// --- Stencil maszk (lokális)
-let ST_REF = 0;                     // 0 → 1..255-ig ciklizálunk
-const MASK_Z = 0.0005;
+// --- Stencil maszk (lokális a node-hoz)
+let ST_REF = 0;                       // 1..255 ciklizálás
+const MASK_Z = 0.0005;                // maszk nagyon kicsit a sík fölé
 function makeMaskGeometry(feature, cx, cy){
   const ringsets = [];
   const g = feature.geometry;
@@ -179,6 +184,7 @@ function makeMaskGeometry(feature, cx, cy){
   const geoms = [];
   for (const rings of ringsets){
     if (!rings?.length) continue;
+
     const outer = rings[0].map(([x,y])=>{
       const [X,Y] = toXY(x,y);
       return new THREE.Vector2(X - cx, Y - cy);   // lokális!
@@ -194,13 +200,15 @@ function makeMaskGeometry(feature, cx, cy){
       if (!THREE.ShapeUtils.isClockWise(hole)) hole.reverse();
       shape.holes.push(new THREE.Path(hole));
     }
+
     const sg = new THREE.ShapeGeometry(shape);
-    sg.translate(0,0,MASK_Z);
+    sg.translate(0,0,MASK_Z);  // csak Z-ben
     geoms.push(sg);
   }
   return geoms.length>1 ? mergeGeometries(geoms, true) : (geoms[0] ?? new THREE.PlaneGeometry(0,0));
 }
-let ORDER = 0;   // node-onként növeljük: maszk -> 2D -> 3D stabil sorrend
+
+let ORDER = 0;   // stabil renderOrder: maszk -> 2D -> 3D
 
 // ========== INIT ==========
 async function init(){
@@ -226,126 +234,110 @@ async function init(){
     const [X,Y,Z]   = toXY(lon, lat, 0);
     node.position.set(X,Y,Z);
 
+    // egyedi stencil ref ehhez a járáshoz
     const stRef = (ST_REF % 255) + 1; ST_REF++;
+
+    // maszk lokális geometriával
     const maskGeom = makeMaskGeometry(f, X, Y);
     const maskMat = new THREE.MeshBasicMaterial({ color:0x000000 });
-    maskMat.colorWrite   = false;
+    maskMat.colorWrite   = false;             // csak stencilbe írjon
     maskMat.transparent  = true;
     maskMat.opacity      = 0.0;
     maskMat.depthWrite   = false;
-    maskMat.depthTest    = false;
+    maskMat.depthTest    = false;             // biztosan írjon
     maskMat.stencilWrite = true;
     maskMat.stencilRef   = stRef;
     maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
     maskMat.stencilZPass = THREE.ReplaceStencilOp;
-const maskMesh = new THREE.Mesh(maskGeom, maskMat);
-maskMesh.renderOrder = -10;       // maszk előbb rajzolódjon, mint sprite/3D
-node.add(maskMesh);
 
-node.userData.stRef = stRef;
+    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+    const baseOrder = 1000 + ORDER * 3;
+    maskMesh.renderOrder = baseOrder;
+    node.add(maskMesh);
 
-    // --- stabil rajzolási sorrend ehhez a járáshoz
-const baseOrder = 1000 + ORDER * 3;
-maskMesh.renderOrder = baseOrder;
+    // bbox a 2D/3D illesztéshez
+    maskGeom.computeBoundingBox();
+    const mb = maskGeom.boundingBox;
+    const maskW = (mb.max.x - mb.min.x);
+    const maskH = (mb.max.y - mb.min.y);
 
-// bbox a sprite/3D illesztéshez (lokális koordináta!)
-maskGeom.computeBoundingBox();
-const mb = maskGeom.boundingBox;
-node.userData.maskW = (mb.max.x - mb.min.x);
-node.userData.maskH = (mb.max.y - mb.min.y);
+    // --- 2D "flat" ikon – plane a térképsíkon (Sprite helyett, így jól vág a stencil)
+    const tex = flatTextures[cid];
+    const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
 
+    const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
+    pmaterial.stencilWrite = true;
+    pmaterial.stencilRef   = stRef;
+    pmaterial.stencilFunc  = THREE.EqualStencilFunc;
+    pmaterial.stencilZPass = THREE.KeepStencilOp;
+    pmaterial.depthTest    = false;           // renderOrder döntsön
 
-    // 2D sprite (távolról)
- // 2D "flat" ikon – sík a térképsíkon (nem Sprite)
-const tex = flatTextures[cid];
-const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
-node.userData.asp = asp;
+    const pad = 0.88;                         // ~12% margó
+    let pw = maskW*pad, ph = maskH*pad;
+    if (pw/ph > asp) { ph = maskH*pad; pw = ph*asp; } else { pw = maskW*pad; ph = pw/asp; }
 
-const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
-// vágás: a járás maszkkal
-pmaterial.stencilWrite = true;
-pmaterial.stencilRef   = stRef;
-pmaterial.stencilFunc  = THREE.EqualStencilFunc;
-pmaterial.stencilZPass = THREE.KeepStencilOp;
+    const pgeom = new THREE.PlaneGeometry(pw, ph);
+    const pmesh = new THREE.Mesh(pgeom, pmaterial);
+    pmesh.position.z  = 0.0008;               // maszk fölé hajszálnyival
+    pmesh.renderOrder = baseOrder + 1;
+    node.add(pmesh);
 
-// illesztés a járás-bboxba, kis paddal
-const pad = 0.88;
-const W = node.userData.maskW || 1;
-const H = node.userData.maskH || 1;
-let pw = W*pad, ph = H*pad;
-if (pw/ph > asp) { ph = H*pad; pw = ph*asp; } else { pw = W*pad; ph = pw/asp; }
+    // --- 3D ikon (SVG extrude) – ugyanazzal a maszkkal vágva
+    const geom3D = isoGeoms[cid];
+    const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+    mmat.stencilWrite = true;
+    mmat.stencilRef   = stRef;
+    mmat.stencilFunc  = THREE.EqualStencilFunc;
+    mmat.stencilZPass = THREE.KeepStencilOp;
+    mmat.depthTest    = false;
 
-const pgeom = new THREE.PlaneGeometry(pw, ph);
-const pmesh = new THREE.Mesh(pgeom, pmaterial);
-pmesh.position.z  = 0.0008;   // a maszk fölé hajszálnyival
-pmesh.renderOrder = 1;
+    const mesh3D = new THREE.Mesh(geom3D, mmat);
 
-node.add(pmesh);
-node.userData.sprite = pmesh; // a későbbi kód "sprite" néven hivatkozik rá
+    // skála a járás rövidebb oldalához (~55%)
+    geom3D.computeBoundingBox?.();
+    const gb   = geom3D.boundingBox;
+    const gW   = (gb?.max.x ?? 1) - (gb?.min.x ?? 0);
+    const gH   = (gb?.max.y ?? 1) - (gb?.min.y ?? 0);
+    const gMax = Math.max(1e-6, gW, gH);
+    const boxMin = Math.min(maskW || 1, maskH || 1);
+    const target = boxMin * 0.55;
+    const s      = target / gMax;
+    const rz     = ICON_SCALE_Z / ICON_SCALE_XY;
+    mesh3D.scale.set(s, s, s*rz);
 
-    pmaterial.depthTest = false;           // renderOrder határozzon
-pmesh.renderOrder    = baseOrder + 1;
+    mesh3D.position.z  = 0.02;                // picit a sík fölé
+    mesh3D.renderOrder = baseOrder + 2;
+    mesh3D.visible     = false;
+    node.add(mesh3D);
 
-    // 3D mesh (közelről)
-const geom3D = isoGeoms[cid];
-const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
-
-// vágás ugyanazzal a maszkkal
-mmat.stencilWrite = true;
-mmat.stencilRef   = stRef;
-mmat.stencilFunc  = THREE.EqualStencilFunc;
-mmat.stencilZPass = THREE.KeepStencilOp;
-
-const mesh3D = new THREE.Mesh(geom3D, mmat);
-
-// skála a járás rövidebb oldalához (kb. 55%)
-geom3D.computeBoundingBox?.();
-const gb   = geom3D.boundingBox;
-const gW   = (gb?.max.x ?? 1) - (gb?.min.x ?? 0);
-const gH   = (gb?.max.y ?? 1) - (gb?.min.y ?? 0);
-const gMax = Math.max(1e-6, gW, gH);
-const boxMin = Math.min(node.userData.maskW || 1, node.userData.maskH || 1);
-const target = boxMin * 0.55;
-const s      = target / gMax;
-const rz     = ICON_SCALE_Z / ICON_SCALE_XY;   // az eddigi Z/XY arányod
-mesh3D.scale.set(s, s, s*rz);
-
-mesh3D.position.z = 0.02;   // picit a sík fölé
-mesh3D.renderOrder = 2;
-mesh3D.visible = false;
-
-node.add(mesh3D);
-node.userData.mesh = mesh3D;
-
-
-Object.assign(node.userData, {
-  key: name,
-  cluster: cid,
-  label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-  s: 1, t: 1, mode: 'flat',
-  sprite: node.userData.sprite,
-  mesh:   mesh3D,
-  asp,
-  stRef
-});
-
+    // --- node meta
+    node.userData = {
+      key: name,
+      cluster: cid,
+      label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
+      s: 1, t: 1, mode: 'flat',
+      sprite: pmesh,         // azért marad a név "sprite", a többi kód így hivatkozik rá
+      mesh:   mesh3D,
+      asp, stRef,
+      maskW, maskH
+    };
 
     iconsGroup.add(node);
     iconByKey[name] = node;
     iconNodes.push(node);
+    ORDER++;                                  // következő node baseOrder-je feljebb megy
   }
 
-  buildLegend(); applyFilter();
+  buildLegend(); 
+  applyFilter();
 
+  // teljes képernyős illesztés
   NATION = computeNationView(content, camera, FIT_OFFSET);
   goNationView(true);
 
   requestAnimationFrame(animate);
 }
 init().catch(console.error);
-
-mmat.depthTest   = false;              // hogy a renderOrder nyerjen
-mesh3D.renderOrder = baseOrder + 2;
 
 // ========== POLIGONOK ==========
 function drawFills(geojson, group){
@@ -430,6 +422,7 @@ async function loadIconTextures(map){
 
 // ========== ISO (3D) – háttérszűrés + extrude ==========
 function sanitizeSvg(text){
+  // gradient/filter url(#...) → egyszerű szín; defs kidobása
   return text.replace(/url\(\s*#.*?\)/gi, '#999').replace(/<defs[\s\S]*?<\/defs>/gi, '');
 }
 function parseHex(c){
@@ -468,6 +461,7 @@ async function loadIsoGeomsFiltered(map){
         for (const s of shs) items.push({shape:s, fill});
       }
 
+      // teljes bounding
       let U=null;
       for (const it of items){
         const b = boundsOfShape(it.shape);
@@ -476,12 +470,10 @@ async function loadIsoGeomsFiltered(map){
       }
       const Uw = (U?.maxX??1)-(U?.minX??0), Uh = (U?.maxY??1)-(U?.minY??0);
 
+      // nagyon világos / túl nagy háttér szűrése
       const filtered = items.filter(it=>{
         const b = boundsOfShape(it.shape);
-       const huge = Uw>0 && Uh>0 && (
-  (b.w>=0.80*Uw && b.h>=0.80*Uh) || b.w>=0.92*Uw || b.h>=0.92*Uh
-);
-
+        const huge = Uw>0 && Uh>0 && ((b.w>=0.80*Uw && b.h>=0.80*Uh) || b.w>=0.92*Uw || b.h>=0.92*Uh);
         return !huge && !isVeryLight(it.fill);
       });
 
@@ -499,7 +491,6 @@ async function loadIsoGeomsFiltered(map){
 }
 
 // ========== LEGENDA + SZŰRŐ ==========
-const ACTIVE = new Set(Object.keys(CLUSTER_LABELS).map(Number));
 function buildLegend(){
   const box = document.getElementById('legend'); if (!box) return;
   box.innerHTML = '';
@@ -622,13 +613,13 @@ function openPanel(name, fillObj){
   if (detailLock && detailLock !== name) showFlat(detailLock);
   detailLock = name;
   activeKey = null;
-tooltip.style.display = 'none';
-renderer.domElement.style.cursor = 'default';
+  tooltip.style.display = 'none';
+  renderer.domElement.style.cursor = 'default';
 
-// (opcionális) a lockolt járást emeljük ki
-fillsGroup.children.forEach(m=>{
-  m.material.opacity = (m.userData.key === name) ? 0.45 : m.userData.baseOpacity;
-});
+  // kiemelés
+  fillsGroup.children.forEach(m=>{
+    m.material.opacity = (m.userData.key === name) ? 0.45 : m.userData.baseOpacity;
+  });
 
   showIso(name);
   const box = new THREE.Box3().setFromObject(fillObj);
@@ -670,8 +661,8 @@ fillsGroup.children.forEach(m=>{
 function closePanel(){
   if (!panel.classList.contains('open')) return;
   tooltip.style.display = 'none';
-activeKey = null;
-renderer.domElement.style.cursor = 'default';
+  activeKey = null;
+  renderer.domElement.style.cursor = 'default';
   if (detailLock) showFlat(detailLock);
   panel.classList.remove('open');
   detailLock = null;
@@ -748,73 +739,63 @@ function animate(){
   } else {
     if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
   }
-// grow/shrink anim (hover/lock)
-for (const n of iconNodes){
-  const key = n.userData.key;
-  const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
-  n.userData.t = shouldGrow ? 1.35 : 1.0;
-  n.userData.s = THREE.MathUtils.lerp(n.userData.s ?? 1, n.userData.t, 0.12);
-  const s = n.userData.s;
-  n.scale.set(s, s, s);
-}
 
-  // képernyő-független 2D ikonméret
-const vFOV = THREE.MathUtils.degToRad(camera.fov);
-const worldPerPixel = (dist)=> 2*Math.tan(vFOV/2)*dist / innerHeight;
+  // "grow/shrink" anim (hover/lock)
+  for (const n of iconNodes){
+    const key = n.userData.key;
+    const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
+    n.userData.t = shouldGrow ? 1.35 : 1.0;
+    n.userData.s = THREE.MathUtils.lerp(n.userData.s ?? 1, n.userData.t, 0.12);
+    const s = n.userData.s;
+    n.scale.set(s, s, s);
+  }
 
-for (const n of iconNodes){
-  if (n.userData.sprite?.visible){
-    // ha van maszk-bbox, tartsuk a fenti (init-ben beállított) méretet
-    // csak fallback: ha nincs bbox, akkor px-alapú skála
-    if (!(n.userData.maskW && n.userData.maskH)){
+  // 2D ikon px‑alapú fallback (ha nem volt bbox – elvileg most mindig van)
+  const vFOV = THREE.MathUtils.degToRad(camera.fov);
+  const worldPerPixel = (dist)=> 2*Math.tan(vFOV/2)*dist / innerHeight;
+  for (const n of iconNodes){
+    if (n.userData.sprite?.visible && !(n.userData.maskW && n.userData.maskH)){
       const d = camera.position.distanceTo(n.position);
       const h = worldPerPixel(d) * SPRITE_PX;
       const asp = n.userData.asp || 1;
       n.userData.sprite.scale.set(h*asp, h, 1);
     }
   }
-  // a "grow/shrink" marad
-}
 
+  // hover
+  const hoverEnabled = !detailLock;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(fillsGroup.children, true);
 
-// hover
-const hoverEnabled = !detailLock;
-raycaster.setFromCamera(mouse, camera);
-const hits = raycaster.intersectObjects(fillsGroup.children, true);
+  if (hoverEnabled && hits.length){
+    const fill = hits[0].object;
+    activeKey = fill.userData.key;
+    renderer.domElement.style.cursor = 'pointer';
 
-if (hoverEnabled && hits.length){
-  const fill = hits[0].object;
-  activeKey = fill.userData.key;
-  renderer.domElement.style.cursor = 'pointer';
-
-  fillsGroup.children.forEach(m=>{
-    const isActive = m.userData.key === activeKey;
-    m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
-  });
-
-  const n = iconByKey[activeKey];
-  tooltip.style.display='block';
-  tooltip.style.left = (pointerX+12)+'px';
-  tooltip.style.top  = (pointerY+12)+'px';
-  tooltip.textContent = n ? n.userData.label : (fill.userData.key ?? '—');
-
-} else {
-  // MINDIG rejtsd el a tooltippet, ha nincs hover VAGY lock van
-  tooltip.style.display='none';
-  renderer.domElement.style.cursor = 'default';
-
-  if (!detailLock){
-    activeKey = null;
-    fillsGroup.children.forEach(m=> m.material.opacity = m.userData.baseOpacity);
-  } else {
-    // lock alatt tartsuk kiemelve a kiválasztott járást
     fillsGroup.children.forEach(m=>{
-      const locked = (m.userData.key === detailLock);
-      m.material.opacity = locked ? 0.45 : m.userData.baseOpacity;
+      const isActive = m.userData.key === activeKey;
+      m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
     });
-  }
-}
 
+    const n = iconByKey[activeKey];
+    tooltip.style.display='block';
+    tooltip.style.left = (pointerX+12)+'px';
+    tooltip.style.top  = (pointerY+12)+'px';
+    tooltip.textContent = n ? n.userData.label : (fill.userData.key ?? '—');
+
+  } else {
+    tooltip.style.display='none';
+    renderer.domElement.style.cursor = 'default';
+    if (!detailLock){
+      activeKey = null;
+      fillsGroup.children.forEach(m=> m.material.opacity = m.userData.baseOpacity);
+    } else {
+      fillsGroup.children.forEach(m=>{
+        const locked = (m.userData.key === detailLock);
+        m.material.opacity = locked ? 0.45 : m.userData.baseOpacity;
+      });
+    }
+  }
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
