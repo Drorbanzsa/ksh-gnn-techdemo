@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C3 – Vállalkozó vidéki öv (flat)">
+  <title>C3 – Vállalkozó vidéki öv (flat)</title>
+  <desc>Mező, kerítés és traktor – a tehén elhagyva a tisztább agrár-vállalkozói fókuszért.</desc>
+  <defs>
+    <linearGradient id="c3sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e9fff3"></stop>
+      <stop offset="100%" stop-color="#e1f8ec"></stop>
+    </linearGradient>
+    <filter id="c3ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"></feGaussianBlur>
+      <feOffset dx="0" dy="1.4"></feOffset>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"></feFuncA></feComponentTransfer>
+      <feMerge><feMergeNode></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c3sky)"></rect>
+  <g>
+    <path d="M0 192 C 64 170, 128 210, 256 188 L256 256 L0 256 Z" fill="#9bd180"></path>
+    <path d="M0 214 C 64 192, 128 232, 256 202 L256 256 L0 256 Z" fill="#7fc86c"></path>
+    <path d="M0 206 C 64 186, 128 222, 256 198" fill="none" stroke="#e6f7e6" stroke-width="3" stroke-linecap="round" opacity="0.9"></path>
+  </g>
+  <!-- traktor nagyobbra véve -->
+  <g transform="translate(148,168)" filter="url(#c3ds)">
+    <rect x="0" y="-10" width="40" height="20" rx="3" fill="#cf5f55" stroke="#a94b45"></rect>
+    <rect x="12" y="-24" width="20" height="12" fill="#8dc1e8" stroke="#6aa6d0"></rect>
+    <circle cx="12" cy="10" r="12" fill="#3a3a3a"></circle><circle cx="12" cy="10" r="5" fill="#d8d8d8"></circle>
+    <circle cx="40" cy="8" r="10" fill="#3a3a3a"></circle><circle cx="40" cy="8" r="4" fill="#d8d8d8"></circle>
+    <rect x="-10" y="-6" width="10" height="4" fill="#cf5f55"></rect>
+  </g>
+  <!-- kerítés -->
+  <g transform="translate(24,196)" stroke="#b48a5a" stroke-width="4" stroke-linecap="round">
+    <path d="M0 0 H208"></path>
+    <path d="M0 10 H208"></path>
+    <path d="M0 0 V12 M32 0 V12 M64 0 V12 M96 0 V12 M128 0 V12 M160 0 V12 M192 0 V12"></path>
+  </g>
+</svg>

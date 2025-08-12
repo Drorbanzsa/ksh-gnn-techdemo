@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C2 – Közmunka-intenzív periféria (flat)">
+  <title>C2 – Közmunka‑intenzív periféria (flat)</title>
+  <desc>Omladozó ház: hiányzó tetőcserepek, repedezett fal, bedeszkázott ablak és megroggyant kerítés.</desc>
+  <defs>
+    <linearGradient id="c2sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff2df"></stop>
+      <stop offset="100%" stop-color="#ffe6c9"></stop>
+    </linearGradient>
+    <filter id="c2ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.6"></feGaussianBlur>
+      <feOffset dx="0" dy="1.6"></feOffset>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"></feFuncA></feComponentTransfer>
+      <feMerge><feMergeNode></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c2sky)"></rect>
+
+  <!-- talaj -->
+  <g>
+    <path d="M0 206 C 64 186, 128 226, 256 198 L256 256 L0 256 Z" fill="#e7d5b8"></path>
+    <path d="M0 220 C 64 200, 128 240, 256 212 L256 256 L0 256 Z" fill="#d7c5a8"></path>
+  </g>
+
+  <!-- omladozó ház -->
+  <g transform="translate(56,120)" filter="url(#c2ds)">
+    <!-- fal -->
+    <rect x="0" y="10" width="96" height="60" rx="6" fill="#efe6da" stroke="#cbb8a3" stroke-width="1.6"></rect>
+    <!-- repedések -->
+    <path d="M20 20 l6 8 -4 6 8 6 -4 6 10 8" stroke="#8a7361" stroke-width="2" fill="none" stroke-linecap="round"></path>
+    <path d="M70 24 l-6 6 4 6 -6 6 8 8" stroke="#8a7361" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.9"></path>
+    <!-- tető (hiányos cserepek) -->
+    <path d="M-8,10 L48,-22 L104,10 Z" fill="#9b5d55" stroke="#7f4b45" stroke-width="1.6"></path>
+    <rect x="18" y="-2" width="10" height="6" fill="#efe6da" opacity="0.85"></rect>
+    <rect x="40" y="-6" width="8" height="5" fill="#efe6da" opacity="0.85"></rect>
+    <rect x="66" y="-4" width="9" height="5" fill="#efe6da" opacity="0.85"></rect>
+
+    <!-- ferde kémény -->
+    <g transform="translate(70,-10) rotate(-10)">
+      <rect x="0" y="-8" width="10" height="18" fill="#805a52"></rect>
+      <rect x="-2" y="-10" width="14" height="4" fill="#6e4d46"></rect>
+      <circle cx="5" cy="-12" r="2" fill="#6e4d46"></circle>
+    </g>
+
+    <!-- bedeszkázott ablak -->
+    <rect x="62" y="30" width="18" height="14" rx="2" fill="#b7cfe6" stroke="#9bb6cc"></rect>
+    <rect x="58" y="28" width="26" height="4" transform="rotate(18 71 30)" fill="#b38254" stroke="#9a6e46"></rect>
+    <rect x="60" y="40" width="26" height="4" transform="rotate(-18 73 42)" fill="#b38254" stroke="#9a6e46"></rect>
+
+    <!-- ajtó -->
+    <rect x="18" y="36" width="16" height="28" rx="2" fill="#8b5e3b" stroke="#6f4c31"></rect>
+    <circle cx="30" cy="50" r="1.6" fill="#d9c5b5"></circle>
+  </g>
+
+  <!-- megroggyant kerítés -->
+  <g transform="translate(28,202)" stroke="#b48a5a" stroke-width="4" stroke-linecap="round">
+    <path d="M0 0 H200" opacity="0.85"></path>
+    <path d="M0 10 H196" opacity="0.85"></path>
+    <path d="M0 0 V12 M30 0 V12 M56 0 V12 M88 0 V8 M120 0 V12 M154 0 V7 M188 0 V12"></path>
+  </g>
+
+  <!-- lehullott cserép -->
+  <rect x="154" y="190" width="12" height="6" transform="rotate(-8 160 193)" fill="#9b5d55" opacity="0.9"></rect>
+</svg>

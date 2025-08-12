@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C0 – Falusi agrár‑periféria (flat)">
+  <title>C0 – Falusi agrár‑periféria (flat)</title>
+  <desc>Falusi ház egyszerű mezővel – 2D áttekintő ikon.</desc>
+  
+  <defs>
+    <linearGradient id="c0sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#dff2ff"/>
+      <stop offset="100%" stop-color="#f6fbff"/>
+    </linearGradient>
+    <filter id="ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"/>
+      <feOffset dx="0" dy="1.4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c0sky)"/>
+  <!-- mező sávok -->
+  <g>
+    <path d="M0 200 C 64 170, 128 228, 256 196 L256 256 L0 256 Z" fill="#99d57f"/>
+    <path d="M0 220 C 64 190, 128 246, 256 212 L256 256 L0 256 Z" fill="#74c36b"/>
+    <path d="M0 236 C 64 206, 128 262, 256 228 L256 256 L0 256 Z" fill="#5db85c"/>
+    <path d="M0 210 C 64 188, 128 226, 256 198" fill="none" stroke="#e6f7e6" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  </g>
+  <!-- falusi ház -->
+  <g transform="translate(52,150)" filter="url(#ds)">
+    <rect x="0" y="18" width="76" height="44" rx="6" fill="#fff7ec" stroke="#d6c6b6"/>
+    <path d="M-8,18 L38,-12 L84,18 Z" fill="#c95a50" stroke="#a4463e"/>
+    <rect x="14" y="34" width="16" height="26" rx="2" fill="#8b5e3b" stroke="#6f4c31"/>
+    <rect x="42" y="28" width="22" height="12" rx="2" fill="#c9e7ff" stroke="#9ec7e3"/>
+  </g>
+  <!-- kis fa -->
+  <g transform="translate(148,162)" filter="url(#ds)">
+    <circle cx="10" cy="10" r="12" fill="#6ec36e" stroke="#5aa95a"/>
+    <rect x="8" y="20" width="4" height="12" fill="#8b5e3b"/>
+  </g>
+
+</svg>

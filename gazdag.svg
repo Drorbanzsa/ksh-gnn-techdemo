@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="C4 – Városi ipar‑szolgáltató központok (flat)">
+  <title>C4 – Városi ipar‑szolgáltató központok (flat)</title>
+  <desc>Kék ég, nap és felhőkarcolók – 2D, városi centrum ikon.</desc>
+  
+  <defs>
+    <linearGradient id="c4sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#cfe8ff"/>
+      <stop offset="100%" stop-color="#eaf6ff"/>
+    </linearGradient>
+    <radialGradient id="sun4" cx="48" cy="48" r="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe17a"/>
+      <stop offset="65%" stop-color="#ffbe55"/>
+      <stop offset="100%" stop-color="#ffa046"/>
+    </radialGradient>
+    <filter id="ds">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"/>
+      <feOffset dx="0" dy="1.4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="url(#c4sky)"/>
+  <circle cx="48" cy="48" r="26" fill="url(#sun4)" filter="url(#ds)"/>
+  <!-- felhő -->
+  <g fill="#ffffff" opacity="0.9">
+    <path d="M100 64c8-16 38-14 44 0 12-4 24 2 25 14-26 2-52 2-69-14z"/>
+  </g>
+  <!-- felhőkarcolók -->
+  <g transform="translate(64,100)" filter="url(#ds)">
+    <rect x="0" y="40" width="40" height="76" fill="#7ea6cf"/>
+    <rect x="46" y="0" width="56" height="116" fill="#6b93be"/>
+    <rect x="106" y="24" width="40" height="92" fill="#5f87b2"/>
+    <!-- ablak rács -->
+    <g fill="#eaf4ff" opacity="0.9">
+      <!-- középső torony -->
+      <rect x="50" y="6" width="5" height="7"/><rect x="50" y="16" width="5" height="7"/><rect x="50" y="26" width="5" height="7"/><rect x="50" y="36" width="5" height="7"/><rect x="50" y="46" width="5" height="7"/><rect x="50" y="56" width="5" height="7"/><rect x="50" y="66" width="5" height="7"/><rect x="50" y="76" width="5" height="7"/><rect x="50" y="86" width="5" height="7"/><rect x="50" y="96" width="5" height="7"/><rect x="58" y="6" width="5" height="7"/><rect x="58" y="16" width="5" height="7"/><rect x="58" y="26" width="5" height="7"/><rect x="58" y="36" width="5" height="7"/><rect x="58" y="46" width="5" height="7"/><rect x="58" y="56" width="5" height="7"/><rect x="58" y="66" width="5" height="7"/><rect x="58" y="76" width="5" height="7"/><rect x="58" y="86" width="5" height="7"/><rect x="58" y="96" width="5" height="7"/><rect x="66" y="6" width="5" height="7"/><rect x="66" y="16" width="5" height="7"/><rect x="66" y="26" width="5" height="7"/><rect x="66" y="36" width="5" height="7"/><rect x="66" y="46" width="5" height="7"/><rect x="66" y="56" width="5" height="7"/><rect x="66" y="66" width="5" height="7"/><rect x="66" y="76" width="5" height="7"/><rect x="66" y="86" width="5" height="7"/><rect x="66" y="96" width="5" height="7"/><rect x="74" y="6" width="5" height="7"/><rect x="74" y="16" width="5" height="7"/><rect x="74" y="26" width="5" height="7"/><rect x="74" y="36" width="5" height="7"/><rect x="74" y="46" width="5" height="7"/><rect x="74" y="56" width="5" height="7"/><rect x="74" y="66" width="5" height="7"/><rect x="74" y="76" width="5" height="7"/><rect x="74" y="86" width="5" height="7"/><rect x="74" y="96" width="5" height="7"/><rect x="82" y="6" width="5" height="7"/><rect x="82" y="16" width="5" height="7"/><rect x="82" y="26" width="5" height="7"/><rect x="82" y="36" width="5" height="7"/><rect x="82" y="46" width="5" height="7"/><rect x="82" y="56" width="5" height="7"/><rect x="82" y="66" width="5" height="7"/><rect x="82" y="76" width="5" height="7"/><rect x="82" y="86" width="5" height="7"/><rect x="82" y="96" width="5" height="7"/><rect x="90" y="6" width="5" height="7"/><rect x="90" y="16" width="5" height="7"/><rect x="90" y="26" width="5" height="7"/><rect x="90" y="36" width="5" height="7"/><rect x="90" y="46" width="5" height="7"/><rect x="90" y="56" width="5" height="7"/><rect x="90" y="66" width="5" height="7"/><rect x="90" y="76" width="5" height="7"/><rect x="90" y="86" width="5" height="7"/><rect x="90" y="96" width="5" height="7"/>
+    </g>
+  </g>
+
+</svg>
