@@ -553,6 +553,15 @@ const panel = document.getElementById('sidepanel');
 function openPanel(name, fillObj){
   if (detailLock && detailLock !== name) showFlat(detailLock);
   detailLock = name;
+  activeKey = null;
+tooltip.style.display = 'none';
+renderer.domElement.style.cursor = 'default';
+
+// (opcionális) a lockolt járást emeljük ki
+fillsGroup.children.forEach(m=>{
+  m.material.opacity = (m.userData.key === name) ? 0.45 : m.userData.baseOpacity;
+});
+
   showIso(name);
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false); flyToBox(box, 1.05, 900);
@@ -592,6 +601,9 @@ function openPanel(name, fillObj){
 }
 function closePanel(){
   if (!panel.classList.contains('open')) return;
+  tooltip.style.display = 'none';
+activeKey = null;
+renderer.domElement.style.cursor = 'default';
   if (detailLock) showFlat(detailLock);
   panel.classList.remove('open');
   detailLock = null;
@@ -686,31 +698,44 @@ function animate(){
     const s = n.userData.s; n.scale.set(s, s, s);
   }
 
-  // hover
-  const hoverEnabled = !detailLock;
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(fillsGroup.children, true);
-  if (hoverEnabled && hits.length){
-    const fill = hits[0].object;
-    activeKey = fill.userData.key;
-    renderer.domElement.style.cursor = 'pointer';
+// hover
+const hoverEnabled = !detailLock;
+raycaster.setFromCamera(mouse, camera);
+const hits = raycaster.intersectObjects(fillsGroup.children, true);
+
+if (hoverEnabled && hits.length){
+  const fill = hits[0].object;
+  activeKey = fill.userData.key;
+  renderer.domElement.style.cursor = 'pointer';
+
+  fillsGroup.children.forEach(m=>{
+    const isActive = m.userData.key === activeKey;
+    m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
+  });
+
+  const n = iconByKey[activeKey];
+  tooltip.style.display='block';
+  tooltip.style.left = (pointerX+12)+'px';
+  tooltip.style.top  = (pointerY+12)+'px';
+  tooltip.textContent = n ? n.userData.label : (fill.userData.key ?? '—');
+
+} else {
+  // MINDIG rejtsd el a tooltippet, ha nincs hover VAGY lock van
+  tooltip.style.display='none';
+  renderer.domElement.style.cursor = 'default';
+
+  if (!detailLock){
+    activeKey = null;
+    fillsGroup.children.forEach(m=> m.material.opacity = m.userData.baseOpacity);
+  } else {
+    // lock alatt tartsuk kiemelve a kiválasztott járást
     fillsGroup.children.forEach(m=>{
-      const isActive = m.userData.key === activeKey;
-      m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
+      const locked = (m.userData.key === detailLock);
+      m.material.opacity = locked ? 0.45 : m.userData.baseOpacity;
     });
-    const n = iconByKey[activeKey];
-    tooltip.style.display='block';
-    tooltip.style.left = (pointerX+12)+'px';
-    tooltip.style.top  = (pointerY+12)+'px';
-    tooltip.textContent = n ? n.userData.label : (fill.userData.key ?? '—');
-  }else{
-    if (!detailLock){
-      activeKey = null;
-      renderer.domElement.style.cursor = 'default';
-      fillsGroup.children.forEach(m=> m.material.opacity = m.userData.baseOpacity);
-      tooltip.style.display='none';
-    }
   }
+}
+
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
