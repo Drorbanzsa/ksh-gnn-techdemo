@@ -252,7 +252,7 @@ async function init(){
     const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
     node.userData.asp = asp;
     const smat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthWrite:false });
-    const smat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthWrite:false });
+   
     // sprite csak ott látszódjon, ahol a maszk rajzolt:
     smat.stencilWrite = true;
     smat.stencilRef   = stRef;
