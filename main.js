@@ -7,7 +7,7 @@ import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 // minden útvonal a main.js-hez képest (GH Pages-safe)
 const fromHere = (p) => new URL(p, import.meta.url).href;
 
-// --- ÚJ: ISO (közeli) ikonok fájlnevei – MIND a gyökérben ---
+// --- ISO (közeli) ikonok fájlnevei – MIND a gyökérben ---
 const ICON_FILES_ISO = {
   0: 'c0-iso.svg',
   1: 'c1-iso.svg',
@@ -17,21 +17,16 @@ const ICON_FILES_ISO = {
 };
 
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
-// minden a gyökérben:
 const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
-
 
 // távoli (ország-nézet) ikonok
 const ICONS_ABS     = Object.fromEntries(Object.entries(ICON_FILES)    .map(([k,p]) => [k, fromHere(p)]));
 // közeli (zoom) ikonok
 const ICONS_ISO_ABS = Object.fromEntries(Object.entries(ICON_FILES_ISO).map(([k,p]) => [k, fromHere(p)]));
 
-// ⇩⇩ EZ MARADJON, és NE legyen külön "iconGeoms" még egyszer ⇩⇩
-const iconGeomsFlat = await loadIconGeoms(ICONS_ABS);
-const iconGeomsIso  = await loadIconGeoms(ICONS_ISO_ABS);
-
+/* -------------------- KOORD + MÉRETEK -------------------- */
 const OX = 19.5, OY = 47.0;
 const SX = 6.5,  SY = 9.5;
 const ICON_SCALE_XY = 0.006;
@@ -83,7 +78,6 @@ scene.add(dir);
 /* -------------------- UI: TOOLTIP + LEGENDA + PANEL -------------------- */
 ensureUI();
 function ensureUI(){
-  // tooltip
   if(!document.getElementById('tooltip')){
     const t = document.createElement('div');
     t.id = 'tooltip';
@@ -94,11 +88,9 @@ function ensureUI(){
     });
     document.body.appendChild(t);
   }
-  // legenda
   if(!document.getElementById('legend')){
     const d = document.createElement('div'); d.id='legend'; document.body.appendChild(d);
   }
-  // oldalsó panel
   if(!document.getElementById('sidepanel')){
     const p = document.createElement('div');
     p.id='sidepanel';
@@ -129,8 +121,6 @@ function ensureUI(){
     p.querySelector('.sp-close').onclick = closePanel;
     p.querySelector('.sp-back').onclick  = closePanel;
   }
-
-  // stílusok
   if(!document.getElementById('legend-style')){
     const css = `
       #legend{position:fixed;left:12px;top:12px;z-index:1000;
@@ -178,18 +168,19 @@ window.addEventListener('pointermove', e=>{
   mouse.y  =-(e.clientY/innerHeight)*2+1;
 });
 
-/* -------------------- ÁLLAPOTOK -------------------- */
-let activeKey = null;        // hoverelt járás
-let detailLock = null;       // panel nyitva → lockolt járás
-let fly = null;              // kamera „fly to” állapot
-let NATION = null;           // ország-nézet paraméterei
+/* -------------------- ÁLLAPOTOK + TÁROLÓK -------------------- */
+let activeKey = null;
+let detailLock = null;
+let fly = null;
+let NATION = null;
 
-/* -------------------- ADATOK BETÖLTÉSE -------------------- */
-const [geo, META, ALIAS] = await Promise.all([
-  (await fetch(GEO_PATH)).json(),
-  loadMeta(SIL_PATH),        // ha nincs CSV, nem omlik össze
-  loadAlias(ALIAS_PATH)      // ha nincs JSON, {}-t ad vissza
-]);
+let GEO = null;
+let META = new Map();
+let ALIAS = {};
+let iconGeomsFlat = {};
+let iconGeomsIso  = {};
+const iconMeshes = [];
+const iconByKey  = {}; // NAME -> ikon mesh
 
 /* -------------------- CSOPORTOK -------------------- */
 const content    = new THREE.Group(); scene.add(content);
@@ -197,10 +188,67 @@ const fillsGroup = new THREE.Group(); fillsGroup.renderOrder = -2; content.add(f
 const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(bordersGrp);
 const iconsGroup = new THREE.Group(); content.add(iconsGroup);
 
-/* -------------------- POLIGON‑KITÖLTÉS -------------------- */
-const fillsByKey = drawFills(geo, fillsGroup);
+/* -------------------- BETÖLTÉS + RAJZOLÁS -------------------- */
+async function init(){
+  // mindent párhuzamosan töltünk
+  const [geo, meta, alias, geomsFlat, geomsIso] = await Promise.all([
+    (await fetch(GEO_PATH)).json(),
+    loadMeta(SIL_PATH).catch(()=>new Map()),
+    loadAlias(ALIAS_PATH).catch(()=> ({})),
+    loadIconGeoms(ICONS_ABS),
+    loadIconGeoms(ICONS_ISO_ABS),
+  ]);
+
+  GEO = geo; META = meta; ALIAS = alias;
+  iconGeomsFlat = geomsFlat; iconGeomsIso = geomsIso;
+
+  // poligonok + határok
+  drawFills(GEO, fillsGroup);
+  drawBorders(GEO, bordersGrp);
+
+  // ikonok (ország-nézetben FLAT)
+  for (const f of GEO.features){
+    const cid  = f.properties.cluster;
+    const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
+    const geom = iconGeomsFlat[cid];
+    if (!geom) continue;
+
+    const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+    const mesh = new THREE.Mesh(geom, mat);
+
+    const [lon,lat] = lonLatOfFeature(f);
+    const [X,Y,Z]   = toXY(lon, lat, 0);
+    mesh.position.set(X,Y,Z);
+
+    mesh.userData = {
+      key: name,
+      cluster: cid,
+      label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
+      s: 1.0,  // aktuális skála
+      t: 1.0   // cél skála
+    };
+    mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
+
+    iconsGroup.add(mesh);
+    iconMeshes.push(mesh);
+    iconByKey[name] = mesh;
+  }
+
+  // legenda
+  buildLegend();
+  applyFilter();
+
+  // ország-nézet most számolható (van content)
+  NATION = computeNationView(content, camera);
+  goNationView(true);
+
+  // indul az animáció
+  requestAnimationFrame(animate);
+}
+init().catch(console.error);
+
+/* -------------------- POLIGON-KITÖLTÉS -------------------- */
 function drawFills(geojson, group){
-  const map = {};
   const trimClose = (ring)=>{
     if (!ring?.length) return [];
     const last = ring[ring.length-1], first = ring[0];
@@ -232,7 +280,7 @@ function drawFills(geojson, group){
       }
 
       const geom = new THREE.ShapeGeometry(shape);
-      geom.translate(0,0,-0.03); // picit lejjebb
+      geom.translate(0,0,-0.03);
 
       const mat  = new THREE.MeshBasicMaterial({
         color, transparent:true, opacity:0.28, depthWrite:false
@@ -240,15 +288,11 @@ function drawFills(geojson, group){
       const mesh = new THREE.Mesh(geom, mat);
       mesh.userData = { key:name, cluster:cid, baseOpacity:0.28, baseColor: color.clone() };
       group.add(mesh);
-
-      if (!map[name]) map[name] = mesh;  // több poligon is tartozhat egy névhez
     }
   }
-  return map;
 }
 
 /* -------------------- HATÁRVONALAK -------------------- */
-drawBorders(geo, bordersGrp);
 function drawBorders(geojson, group){
   const pos = [];
   const pushRing = (ring) => {
@@ -270,56 +314,41 @@ function drawBorders(geojson, group){
   group.add(lines);
 }
 
-/* -------------------- IKONOK (SVG → 3D) -------------------- */
-const iconMeshes = [];
-const iconByKey  = {}; // NAME -> ikon mesh
-
-for (const f of geo.features){
-  const cid  = f.properties.cluster;
-  const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
-  const geom = iconGeomsFlat[cid];  // ország-nézetben a "flat" készlet megy
-  if (!geom) continue;
-  const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
-  const mesh = new THREE.Mesh(geom, mat);
-
-  const [lon,lat] = lonLatOfFeature(f);
-  const [X,Y,Z]   = toXY(lon, lat, 0);
-  mesh.position.set(X,Y,Z);
-
-  mesh.userData = {
-    key: name,
-    cluster: cid,
-    label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-    s: 1.0,  // aktuális skála
-    t: 1.0   // cél skála
-  };
-  mesh.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
-
-  iconsGroup.add(mesh);
-  iconMeshes.push(mesh);
-  iconByKey[name] = mesh;
+/* -------------------- SVG → GEOMETRIA (warning-mentes) -------------------- */
+function sanitizeSvg(text){
+  // minden url(#…)-t fix színre cserélünk (fill/stroke/style/gradiensek se kellenek ikonoknál)
+  text = text.replace(/url\(\s*#.*?\)/gi, '#000');
+  text = text.replace(/stroke="url\(\s*#.*?\)"/gi, 'stroke="#000"');
+  text = text.replace(/fill="url\(\s*#.*?\)"/gi, 'fill="#000"');
+  text = text.replace(/style="([^"]*)"/gi, (m, css) =>
+    'style="' + css
+      .replace(/fill\s*:\s*url\([^)]*\)/gi, 'fill:#000')
+      .replace(/stroke\s*:\s*url\([^)]*\)/gi, 'stroke:#000') + '"'
+  );
+  // opcionális: <defs> eltávolítás
+  text = text.replace(/<defs[\s\S]*?<\/defs>/gi, '');
+  return text;
 }
-console.info('Ikonok száma:', iconMeshes.length);
 
 async function loadIconGeoms(map){
   const loader = new SVGLoader();
   const out = {};
   for (const [cid, path] of Object.entries(map)){
     try{
-      const svgData = await loader.loadAsync(path);
+      const raw = await fetch(path).then(r=>r.text());
+      const cleaned = sanitizeSvg(raw);
+      const { paths } = loader.parse(cleaned);
 
-      // Sok SVG-ben fill="url(#...)" → szín-parszolási warning. Semlegesítjük:
-      for (const p of svgData.paths){
-        try {
-          if (p?.userData?.style?.fill && String(p.userData.style.fill).startsWith('url(')) {
-            p.userData.style.fill = '#000';
-          }
-          p.color.set('#000'); // mindegyik rész fekete – a MeshStandardMaterial színe fog számítani
-        } catch {}
+      for (const p of paths){
+        try { p.color.set('#000'); } catch {}
+        if (p?.userData?.style) {
+          if (p.userData.style.fill && String(p.userData.style.fill).startsWith('url(')) p.userData.style.fill = '#000';
+          if (p.userData.style.stroke && String(p.userData.style.stroke).startsWith('url(')) p.userData.style.stroke = '#000';
+        }
       }
 
       const shapes = [];
-      for (const p of svgData.paths) shapes.push(...SVGLoader.createShapes(p));
+      for (const p of paths) shapes.push(...SVGLoader.createShapes(p));
 
       let geom;
       if (shapes.length){
@@ -327,24 +356,19 @@ async function loadIconGeoms(map){
         geom = mergeGeometries(parts, true);
         geom.center();
       } else {
-        // fallback, ha valamiért nem jön shape
         geom = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
       }
       out[cid] = geom;
     }catch(e){
-      console.warn('SVG load hiba, fallback henger:', map[cid], e);
+      console.warn('SVG load/parse hiba, fallback henger:', map[cid], e);
       out[cid] = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
     }
   }
   return out;
 }
 
-
 /* -------------------- LEGENDA + SZŰRŐ -------------------- */
 const ACTIVE = new Set(Object.keys(CLUSTER_LABELS).map(Number)); // kezdetben mind aktív
-buildLegend();
-applyFilter();
-
 function buildLegend(){
   const box = document.getElementById('legend');
   if (!box) return;
@@ -446,16 +470,12 @@ function setIconGeometry(name, mode='flat'){
   const cid = m.userData.cluster;
   const next = (mode === 'iso' ? iconGeomsIso[cid] : iconGeomsFlat[cid]);
   if (!next) return;
-  // (opcionális) a régi geometriát takaríthatod, ha nagyon sokat kapcsolgatsz:
-  // m.geometry.dispose();
   m.geometry = next;
   m.geometry.computeBoundingBox?.();
   m.geometry.computeBoundingSphere?.();
 }
-
 function showIso(name){  setIconGeometry(name, 'iso');  }
 function showFlat(name){ setIconGeometry(name, 'flat'); }
-
 
 // Ország-nézet (mindig szemből)
 function goNationView(immediate=false){
@@ -473,7 +493,7 @@ function goNationView(immediate=false){
   }
 }
 
-// „Fly to” egy bounding box‑ra – kis dőléssel
+// „Fly to” egy bounding box-ra – kis dőléssel
 function flyToBox(box, offset=1.10, duration=900){
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
@@ -503,18 +523,15 @@ function onClick(){
 /* -------------------- PANEL LOGIKA -------------------- */
 const panel = document.getElementById('sidepanel');
 function openPanel(name, fillObj){
-  // ha volt korábbi lock, előbb állítsuk vissza
   if (detailLock && detailLock !== name) showFlat(detailLock);
   detailLock = name;
 
-  showIso(name);     // ⇦ itt kapcsolunk ISO‑ra
+  showIso(name);
   
-  // kamera rázoom + enyhe döntés
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false);
   flyToBox(box, 1.05, 900);
 
-  // --- panel tartalom ---
   const im  = iconByKey[name];
   const cid = im?.userData?.cluster ?? null;
 
@@ -546,11 +563,9 @@ function openPanel(name, fillObj){
     const li = document.createElement('li'); li.textContent = '–'; UL.appendChild(li);
   }
 
-  // --- döntésfa PNG (V1) ---
   const img = panel.querySelector('#sp-tree-img');
   if (img){
     if (cid!=null){
-      // FIGYELEM: fájlnév: dtree_cluster{cid}_FULL.png (nincs 's' a végén!)
       img.src = fromHere(`dtree_cluster${cid}_FULL.png`);
       img.alt = `Klaszter ${cid} döntésfa`;
       img.style.display = '';
@@ -563,16 +578,13 @@ function openPanel(name, fillObj){
 
   panel.classList.add('open');
 }
-
 function closePanel(){
   if (!panel.classList.contains('open')) return;
-  if (detailLock) showFlat(detailLock);   // ⇦ vissza FLAT‑re
+  if (detailLock) showFlat(detailLock);
   panel.classList.remove('open');
   detailLock = null;
   goNationView(false);
 }
-
-// Esc-re is zárjuk, ez már nálad bent volt:
 window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
 
 /* -------------------- ALIAS + CSV BETÖLTŐK -------------------- */
@@ -583,22 +595,13 @@ function prettifyFeature(s){
   if (alias) return alias;
   return k.replace(/_/g,' ').replace(/\s+/g,' ').trim();
 }
-
 async function loadAlias(path){
-  try {
-    const res = await fetch(path);
-    if (!res.ok) return {};
-    return await res.json();
-  } catch { return {}; }
+  try { const res = await fetch(path); if (!res.ok) return {}; return await res.json(); }
+  catch { return {}; }
 }
-
 async function loadMeta(path){
-  try{
-    const txt = await (await fetch(path)).text();
-    return parseCSVToMap(txt);
-  }catch{
-    return new Map();
-  }
+  try{ const txt = await (await fetch(path)).text(); return parseCSVToMap(txt); }
+  catch{ return new Map(); }
 }
 function parseCSVToMap(text){
   const firstLine = text.split(/\r?\n/).find(l=>l.trim().length>0) || '';
@@ -651,7 +654,6 @@ function animate(){
 
   controls.update();
 
-  // kamera "fly" interpoláció
   if (fly){
     fly.t += dt;
     const a = Math.min(1, fly.t / fly.dur);
@@ -661,17 +663,15 @@ function animate(){
     controls.target.copy(target); controls.update();
     if (a>=1) fly = null;
   }
-// csere zoom-küszöbre
-if (detailLock){
-  const d = camera.position.distanceTo(controls.target);
-  if (d < 9) showIso(detailLock);
-  else       showFlat(detailLock);
-}
 
-  // hover csak akkor, ha nincs panel lock
+  if (detailLock){
+    const d = camera.position.distanceTo(controls.target);
+    if (d < 9) showIso(detailLock);
+    else       showFlat(detailLock);
+  }
+
   const hoverEnabled = !detailLock;
 
-  // 1) Raycast a járás-kitetöltésekre
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(fillsGroup.children, true);
 
@@ -699,7 +699,6 @@ if (detailLock){
     }
   }
 
-  // 2) ikon skálázás simítva
   iconMeshes.forEach(m=>{
     const key = m.userData.key;
     const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
@@ -712,8 +711,6 @@ if (detailLock){
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
-animate();
 
-// csak MOST számoljuk ki az ország‑nézetet (már vannak objektumok a content‑ben)
-NATION = computeNationView(content, camera);
-goNationView(true);
+/* -------------------- NATION VIEW UTASÍTÓK -------------------- */
+// goNationView(true) az init() végén hívódik
