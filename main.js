@@ -237,9 +237,18 @@ async function init(){
     maskMat.stencilRef   = stRef;
     maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
     maskMat.stencilZPass = THREE.ReplaceStencilOp;
-    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
-    maskMesh.renderOrder = -100;
-    node.add(maskMesh);
+const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+maskMesh.renderOrder = -10;       // maszk előbb rajzolódjon, mint sprite/3D
+node.add(maskMesh);
+
+node.userData.stRef = stRef;
+
+// bbox a sprite/3D illesztéshez (lokális koordináta!)
+maskGeom.computeBoundingBox();
+const mb = maskGeom.boundingBox;
+node.userData.maskW = (mb.max.x - mb.min.x);
+node.userData.maskH = (mb.max.y - mb.min.y);
+
 
     // 2D sprite (távolról)
     const tex = flatTextures[cid];
@@ -252,14 +261,50 @@ async function init(){
     const sprite = new THREE.Sprite(smat);
     sprite.renderOrder = 1;
     node.add(sprite);
+    node.userData.sprite = sprite;
+    const pad = 0.88;                   // kb. 12% margó a széleken
+const asp = node.userData.asp || 1; // ikon képarány
+const W = node.userData.maskW || 1;
+const H = node.userData.maskH || 1;
+if (W && H){
+  let sw = W*pad, sh = H*pad;
+  // tartsa az ikon képarányát a bbox-on belül
+  if (sw/sh > asp) { sh = H*pad; sw = sh*asp; }
+  else             { sw = W*pad; sh = sw/asp; }
+  sprite.scale.set(sw, sh, 1);
+}
 
     // 3D mesh (közelről)
-    const geom3D = isoGeoms[cid];
-    const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
-    const mesh3D = new THREE.Mesh(geom3D, mmat);
-    mesh3D.scale.set(ICON_SCALE_XY, ICON_SCALE_XY, ICON_SCALE_Z);
-    mesh3D.visible = false;
-    node.add(mesh3D);
+const geom3D = isoGeoms[cid];
+const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+
+// vágás ugyanazzal a maszkkal
+mmat.stencilWrite = true;
+mmat.stencilRef   = stRef;
+mmat.stencilFunc  = THREE.EqualStencilFunc;
+mmat.stencilZPass = THREE.KeepStencilOp;
+
+const mesh3D = new THREE.Mesh(geom3D, mmat);
+
+// skála a járás rövidebb oldalához (kb. 55%)
+geom3D.computeBoundingBox?.();
+const gb   = geom3D.boundingBox;
+const gW   = (gb?.max.x ?? 1) - (gb?.min.x ?? 0);
+const gH   = (gb?.max.y ?? 1) - (gb?.min.y ?? 0);
+const gMax = Math.max(1e-6, gW, gH);
+const boxMin = Math.min(node.userData.maskW || 1, node.userData.maskH || 1);
+const target = boxMin * 0.55;
+const s      = target / gMax;
+const rz     = ICON_SCALE_Z / ICON_SCALE_XY;   // az eddigi Z/XY arányod
+mesh3D.scale.set(s, s, s*rz);
+
+mesh3D.position.z = 0.02;   // picit a sík fölé
+mesh3D.renderOrder = 2;
+mesh3D.visible = false;
+
+node.add(mesh3D);
+node.userData.mesh = mesh3D;
+
 
     node.userData = {
       key: name,
@@ -682,21 +727,23 @@ function animate(){
   }
 
   // képernyő-független 2D ikonméret
-  const vFOV = THREE.MathUtils.degToRad(camera.fov);
-  const worldPerPixel = (dist)=> 2*Math.tan(vFOV/2)*dist / innerHeight;
-  for (const n of iconNodes){
-    if (n.userData.sprite?.visible){
+const vFOV = THREE.MathUtils.degToRad(camera.fov);
+const worldPerPixel = (dist)=> 2*Math.tan(vFOV/2)*dist / innerHeight;
+
+for (const n of iconNodes){
+  if (n.userData.sprite?.visible){
+    // ha van maszk-bbox, tartsuk a fenti (init-ben beállított) méretet
+    // csak fallback: ha nincs bbox, akkor px-alapú skála
+    if (!(n.userData.maskW && n.userData.maskH)){
       const d = camera.position.distanceTo(n.position);
       const h = worldPerPixel(d) * SPRITE_PX;
       const asp = n.userData.asp || 1;
       n.userData.sprite.scale.set(h*asp, h, 1);
     }
-    const key = n.userData.key;
-    const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
-    n.userData.t = shouldGrow ? 1.35 : 1.0;
-    n.userData.s = THREE.MathUtils.lerp(n.userData.s, n.userData.t, 0.12);
-    const s = n.userData.s; n.scale.set(s, s, s);
   }
+  // a "grow/shrink" marad
+}
+
 
 // hover
 const hoverEnabled = !detailLock;
