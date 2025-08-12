@@ -33,9 +33,7 @@ const ICONS_ISO_ABS = Object.fromEntries(
 
 const iconGeomsFlat = await loadIconGeoms(ICONS_ABS);
 const iconGeomsIso  = await loadIconGeoms(ICONS_ISO_ABS);
-const svgData = await loader.loadAsync(path);
-// színt kényszerítünk, hogy a loader ne próbálja a url(#...) dolgokat színnek értelmezni
-svgData.paths.forEach(p => { try{ p.color.set('#000'); } catch{} });
+
 
 
 const OX = 19.5, OY = 47.0;
