@@ -251,28 +251,32 @@ node.userData.maskH = (mb.max.y - mb.min.y);
 
 
     // 2D sprite (távolról)
-    const tex = flatTextures[cid];
-    const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
-    const smat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthWrite:false });
-    smat.stencilWrite = true;
-    smat.stencilRef   = stRef;
-    smat.stencilFunc  = THREE.EqualStencilFunc;
-    smat.stencilZPass = THREE.KeepStencilOp;
-    const sprite = new THREE.Sprite(smat);
-    sprite.renderOrder = 1;
-    node.add(sprite);
-    node.userData.sprite = sprite;
-    const pad = 0.88;                   // kb. 12% margó a széleken
-    const asp = node.userData.asp || 1; // ikon képarány
-    const W = node.userData.maskW || 1;
-    const H = node.userData.maskH || 1;
-    if (W && H){
-    let sw = W*pad, sh = H*pad;
-  // tartsa az ikon képarányát a bbox-on belül
-    if (sw/sh > asp) { sh = H*pad; sw = sh*asp; }
-    else             { sw = W*pad; sh = sw/asp; }
-    sprite.scale.set(sw, sh, 1);
-}
+ // 2D "flat" ikon – sík a térképsíkon (nem Sprite)
+const tex = flatTextures[cid];
+const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
+node.userData.asp = asp;
+
+const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
+// vágás: a járás maszkkal
+pmaterial.stencilWrite = true;
+pmaterial.stencilRef   = stRef;
+pmaterial.stencilFunc  = THREE.EqualStencilFunc;
+pmaterial.stencilZPass = THREE.KeepStencilOp;
+
+// illesztés a járás-bboxba, kis paddal
+const pad = 0.88;
+const W = node.userData.maskW || 1;
+const H = node.userData.maskH || 1;
+let pw = W*pad, ph = H*pad;
+if (pw/ph > asp) { ph = H*pad; pw = ph*asp; } else { pw = W*pad; ph = pw/asp; }
+
+const pgeom = new THREE.PlaneGeometry(pw, ph);
+const pmesh = new THREE.Mesh(pgeom, pmaterial);
+pmesh.position.z  = 0.0008;   // a maszk fölé hajszálnyival
+pmesh.renderOrder = 1;
+
+node.add(pmesh);
+node.userData.sprite = pmesh; // a későbbi kód "sprite" néven hivatkozik rá
 
     // 3D mesh (közelről)
 const geom3D = isoGeoms[cid];
@@ -306,12 +310,17 @@ node.add(mesh3D);
 node.userData.mesh = mesh3D;
 
 
-    node.userData = {
-      key: name,
-      cluster: cid,
-      label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-      s:1, t:1, mode:'flat', sprite, mesh:mesh3D, asp, stRef
-    };
+Object.assign(node.userData, {
+  key: name,
+  cluster: cid,
+  label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
+  s: 1, t: 1, mode: 'flat',
+  sprite: node.userData.sprite,
+  mesh:   mesh3D,
+  asp,
+  stRef
+});
+
 
     iconsGroup.add(node);
     iconByKey[name] = node;
@@ -458,7 +467,10 @@ async function loadIsoGeomsFiltered(map){
 
       const filtered = items.filter(it=>{
         const b = boundsOfShape(it.shape);
-        const huge = Uw>0 && Uh>0 && (b.w>=0.8*Uw && b.h>=0.8*Uh);
+       const huge = Uw>0 && Uh>0 && (
+  (b.w>=0.80*Uw && b.h>=0.80*Uh) || b.w>=0.92*Uw || b.h>=0.92*Uh
+);
+
         return !huge && !isVeryLight(it.fill);
       });
 
@@ -725,6 +737,15 @@ function animate(){
   } else {
     if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
   }
+// grow/shrink anim (hover/lock)
+for (const n of iconNodes){
+  const key = n.userData.key;
+  const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
+  n.userData.t = shouldGrow ? 1.35 : 1.0;
+  n.userData.s = THREE.MathUtils.lerp(n.userData.s ?? 1, n.userData.t, 0.12);
+  const s = n.userData.s;
+  n.scale.set(s, s, s);
+}
 
   // képernyő-független 2D ikonméret
 const vFOV = THREE.MathUtils.degToRad(camera.fov);
