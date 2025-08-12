@@ -7,16 +7,33 @@ import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 // minden útvonal a main.js-hez képest (GH Pages-safe)
 const fromHere = (p) => new URL(p, import.meta.url).href;
 
+// --- ÚJ: ISO (közeli) ikonok fájlnevei – MIND a gyökérben ---
+const ICON_FILES_ISO = {
+  0: 'c0-iso.svg',
+  1: 'c1-iso.svg',
+  2: 'c2-iso.svg',
+  3: 'c3-iso.svg',
+  4: 'c4-iso.svg'
+};
+
 /* -------------------- BEÁLLÍTÁSOK -------------------- */
 // minden a gyökérben:
 const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
 
-// ikon SVG-k abszolút útvonala (NE deklaráld kétszer!)
+// távoli (ország-nézet) ikonok
 const ICONS_ABS = Object.fromEntries(
   Object.entries(ICON_FILES).map(([k, p]) => [k, fromHere(p)])
 );
+// közeli (zoom) ikonok
+const ICONS_ISO_ABS = Object.fromEntries(
+  Object.entries(ICON_FILES_ISO).map(([k, p]) => [k, fromHere(p)])
+);
+
+const iconGeomsFlat = await loadIconGeoms(ICONS_ABS);
+const iconGeomsIso  = await loadIconGeoms(ICONS_ISO_ABS);
+
 
 const OX = 19.5, OY = 47.0;
 const SX = 6.5,  SY = 9.5;
@@ -265,7 +282,7 @@ const iconGeoms = await loadIconGeoms(ICONS_ABS);
 for (const f of geo.features){
   const cid  = f.properties.cluster;
   const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
-  const geom = iconGeoms[cid];
+  const geom = iconGeomsFlat[cid];  // ország-nézetben a "flat" készlet megy
   if (!geom) continue;
 
   const mat  = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
@@ -414,6 +431,25 @@ function lockTilt(lock) {
   }
 }
 
+// --- IKON VÁLTÁS: ország-nézet ⇄ közeli ISO nézet ---
+function setIconGeometry(name, mode='flat'){
+  const m = iconByKey[name];
+  if (!m) return;
+  const cid = m.userData.cluster;
+  if (mode === 'iso' && iconGeomsIso[cid]) {
+    m.geometry = iconGeomsIso[cid];
+  } else if (iconGeomsFlat[cid]) {
+    m.geometry = iconGeomsFlat[cid];
+  }
+  // a skálát ne piszkáljuk, csak a geometriát cseréljük
+  m.geometry.computeBoundingBox?.();
+  m.geometry.computeBoundingSphere?.();
+}
+
+function showIso(name){ setIconGeometry(name, 'iso'); }
+function showFlat(name){ setIconGeometry(name, 'flat'); }
+
+
 // Ország-nézet (mindig szemből)
 function goNationView(immediate=false){
   if (!NATION) NATION = computeNationView(content, camera);
@@ -461,6 +497,7 @@ function onClick(){
 const panel = document.getElementById('sidepanel');
 function openPanel(name, fillObj){
   detailLock = name;
+  showIso(name);   // ⇦ a kiválasztott járás ikonja ISO (közeli) geóra vált
 
   // kamera rázoom + enyhe döntés
   const box = new THREE.Box3().setFromObject(fillObj);
@@ -519,6 +556,8 @@ function openPanel(name, fillObj){
 
 function closePanel(){
   if (!panel.classList.contains('open')) return;
+  // ha volt lockolt járás, állítsuk vissza a flat geót
+  if (detailLock) showFlat(detailLock);
   panel.classList.remove('open');
   detailLock = null;
   // vissza ország-nézetbe (felülnézet, fix dőlés)
