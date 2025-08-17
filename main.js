@@ -1,9 +1,12 @@
+// RÉGI (duplikációhoz vezethet):
+// import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-// ====== THREE.js modulok CDN-ről (GitHub Pages / bundler nélkül is működik) ======
-import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
+// ÚJ (egységes, az examples ?module is ezt használja):
+import * as THREE from 'https://unpkg.com/three@0.168.0?module';
 import { OrbitControls }  from 'https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js?module';
 import { SVGLoader }      from 'https://unpkg.com/three@0.168.0/examples/jsm/loaders/SVGLoader.js?module';
 import * as BufferGeometryUtils from 'https://unpkg.com/three@0.168.0/examples/jsm/utils/BufferGeometryUtils.js?module';
+
 
 // Helyi segédfájl
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
