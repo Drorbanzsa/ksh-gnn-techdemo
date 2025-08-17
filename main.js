@@ -1,23 +1,13 @@
+// ====== THREE.js modulok CDN-ről (GitHub Pages / bundler nélkül is működik) ======
+import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
+import { OrbitControls }  from 'https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js';
+import { SVGLoader }      from 'https://unpkg.com/three@0.168.0/examples/jsm/loaders/SVGLoader.js';
+import { mergeGeometries } from 'https://unpkg.com/three@0.168.0/examples/jsm/utils/BufferGeometryUtils.js';
 
-import * as THREE from 'three';
-import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
-import { SVGLoader }      from 'three/addons/loaders/SVGLoader.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+// Helyi segédfájl
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
-// =====================
-// Beállítások
-// =====================
-const ICON_SCALE_XY = 0.006;
-const ICON_SCALE_Z  = 0.003;
-const SPRITE_PX     = 36;
-const ISO_SWITCH_PX = 120;   // pixel-alapú 3D-küszöb
-const FIT_OFFSET    = 1.01;
-const GROW_DURATION = 650;   // 3D „kinövés” animáció (ms)
-
-// =====================
-// Elérési utak
-// =====================
+// --- elérési utak
 const fromHere = (p) => new URL(p, import.meta.url).href;
 const ICON_FILES_ISO = { 0:'c0-iso.svg', 1:'c1-iso.svg', 2:'c2-iso.svg', 3:'c3-iso.svg', 4:'c4-iso.svg' };
 
@@ -25,13 +15,10 @@ const GEO_PATH   = fromHere('clusters_k5.geojson');
 const SIL_PATH   = fromHere('silhouette_local.csv');
 const ALIAS_PATH = fromHere('alias_map.json');
 
-const ICONS_ABS     = Object.fromEntries(Object.entries(ICON_FILES).map(([k,p]) => [k, fromHere(p)]));
+const ICONS_ABS     = Object.fromEntries(Object.entries(ICON_FILES)    .map(([k,p]) => [k, fromHere(p)]));
 const ICONS_ISO_ABS = Object.fromEntries(Object.entries(ICON_FILES_ISO).map(([k,p]) => [k, fromHere(p)]));
 
-// =====================
-// „Vetítés”
-/* egyszerű affinnal lon/lat → XY */
-// =====================
+// --- térkép "projekció"
 const OX = 19.5, OY = 47.0, SX = 6.5, SY = 9.5;
 const toXY = (lon, lat, z=0) => [ (lon-OX)*SX, (lat-OY)*SY, z ];
 function lonLatOfFeature(f){
@@ -47,9 +34,17 @@ function lonLatOfFeature(f){
   return [OX, OY];
 }
 
-// =====================
-// SCENE
-// =====================
+// --- ikon méretezés / váltás
+const ICON_SCALE_XY = 0.006;
+const ICON_SCALE_Z  = 0.003;
+const SPRITE_PX = 36;                  // ha nincs bbox, px alapú fallback
+const ISO_SWITCH_DISTANCE = 12;        // ez alatt 3D-re vált (hover eset)
+const FIT_OFFSET = 1.01;
+
+// --- „földből kinövés” animáció paraméter
+const GROW_DURATION = 650; // ms
+
+// ========== SCENE ==========
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 
@@ -60,6 +55,7 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, stencil:true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
+
 const MAX_ANISO = renderer.capabilities.getMaxAnisotropy?.() ?? 4;
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -78,9 +74,8 @@ const dir = new THREE.DirectionalLight(0xffffff, 0.7);
 dir.position.set(2, -2, 3);
 scene.add(dir);
 
-// =====================
-// UI
-// =====================
+// ========== UI ==========
+ensureUI();
 function ensureUI(){
   if(!document.getElementById('tooltip')){
     const t = document.createElement('div');
@@ -155,11 +150,8 @@ function ensureUI(){
     `; document.head.appendChild(st);
   }
 }
-ensureUI();
 
-// =====================
-// INPUT
-// =====================
+// ========== INPUT ==========
 const tooltip = document.getElementById('tooltip');
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -170,13 +162,18 @@ window.addEventListener('pointermove', e=>{
   mouse.y  =-(e.clientY/innerHeight)*2+1;
 });
 
+// ========== ÁLLAPOT ==========
 let activeKey = null, detailLock = null, fly = null, NATION = null, lastIsoKey = null;
+
+// A szűrő aktív halmaza – FELÜL, hogy ne legyen TDZ hiba:
 const ACTIVE = new Set(Object.keys(CLUSTER_LABELS).map(Number));
 
+// ========== TÁROLÓK ==========
 let GEO = null, META = new Map(), ALIAS = {};
 const iconByKey = {};
 const iconNodes = [];
 
+// ========== CSOPORTOK ==========
 const content    = new THREE.Group(); scene.add(content);
 const fillsGroup = new THREE.Group(); fillsGroup.renderOrder = -2; content.add(fillsGroup);
 const bordersGrp = new THREE.Group(); bordersGrp.renderOrder = -1; content.add(bordersGrp);
@@ -221,16 +218,14 @@ function makeMaskGeometry(feature, cx, cy){
 
 let ORDER = 0;   // stabil renderOrder: maszk -> 2D -> 3D
 
-// =====================
-// INIT
-// =====================
+// ========== INIT ==========
 async function init(){
   const [geo, meta, alias, flatTextures, isoGeoms] = await Promise.all([
     (await fetch(GEO_PATH)).json(),
     loadMeta(SIL_PATH).catch(()=>new Map()),
     loadAlias(ALIAS_PATH).catch(()=> ({})),
-    loadIconTextures(ICONS_ABS, MAX_ANISO),
-    loadIsoGeomsNoFilter(ICONS_ISO_ABS), // fontos: NINCS szűrés
+    loadIconTextures(ICONS_ABS),
+    loadIsoGeomsNoFilter(ICONS_ISO_ABS), // ← fontos: NINCS szűrés
   ]);
 
   GEO = geo; META = meta; ALIAS = alias;
@@ -267,7 +262,8 @@ async function init(){
     const maskMesh = new THREE.Mesh(maskGeom, maskMat);
     node.add(maskMesh);
 
-    // stabil rajzolási sorrend: maszk -> 2D -> 3D
+    // stabil, egymáshoz képest fix rajzolási sorrend: maszk -> 2D -> 3D
+    // (minden járás külön "sávot" kap)
     const baseOrder = 1000 + ORDER * 3;
     ORDER++;
     maskMesh.renderOrder = baseOrder;
@@ -278,7 +274,7 @@ async function init(){
     const maskW = (mb.max.x - mb.min.x);
     const maskH = (mb.max.y - mb.min.y);
 
-    // ---------- 2D: „flat” ikon ----------
+    // ---------- 2D: „flat” ikon (textúrázott sík), maszkkal kivágva ----------
     const tex = flatTextures[cid];
     const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
 
@@ -301,7 +297,7 @@ async function init(){
 
     node.add(pmesh);
 
-    // ---------- 3D: „iso” ikon ----------
+    // ---------- 3D: „iso” ikon, maszkkal kivágva ----------
     const geom3D = isoGeoms[cid] || new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
     const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888, flatShading:true });
     mmat.stencilWrite = true;
@@ -323,10 +319,11 @@ async function init(){
     const s      = target / gMax;
     const rz     = ICON_SCALE_Z / ICON_SCALE_XY;   // a kívánt Z/XY arány
 
-    mesh3D.userData.fullScaleZ = Math.min(Math.max(s*rz, 0.1), 3.0);
-    mesh3D.scale.set(s, s, 0.0001);               // „földben indul”
-    mesh3D.position.z  = 0.02;
-    mesh3D.visible     = false;                   // zoomnál / panelnél kapcsoljuk
+    // XY végleges, Z „földben” indul → animálva nő
+    mesh3D.userData.fullScaleZ = s * rz;
+    mesh3D.scale.set(s, s, 0.0001);
+    mesh3D.position.z  = 0.02;                 // a sík fölé
+    mesh3D.visible     = false;                // zoomnál / panelnél kapcsoljuk
 
     node.add(mesh3D);
 
@@ -336,7 +333,7 @@ async function init(){
       cluster: cid,
       label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
       s: 1, t: 1, mode:'flat',
-      sprite: pmesh,
+      sprite: pmesh,            // a meglévő kód „sprite”-ként kezeli
       mesh:   mesh3D,
       asp,
       stRef,
@@ -346,6 +343,7 @@ async function init(){
     iconsGroup.add(node);
     iconByKey[name] = node;
     iconNodes.push(node);
+    ORDER++;
   }
 
   buildLegend(); 
@@ -359,9 +357,7 @@ async function init(){
 }
 init().catch(console.error);
 
-// =====================
-// POLIGONOK
-// =====================
+// ========== POLIGONOK ==========
 function drawFills(geojson, group){
   const trimClose = (ring)=>{
     if (!ring?.length) return [];
@@ -399,9 +395,7 @@ function drawFills(geojson, group){
   }
 }
 
-// =====================
-// HATÁROK
-// =====================
+// ========== HATÁROK ==========
 function drawBorders(geojson, group){
   const pos = [];
   const pushRing = (ring) => {
@@ -422,10 +416,8 @@ function drawBorders(geojson, group){
   group.add(new THREE.LineSegments(geom, mat));
 }
 
-// =====================
-// FLAT (2D) – SVG mint textúra
-// =====================
-async function loadIconTextures(map, maxAniso){
+// ========== FLAT (2D) – SVG mint textúra ==========
+async function loadIconTextures(map){
   const loader = new THREE.TextureLoader();
   const out = {};
   for (const [cid, path] of Object.entries(map)){
@@ -434,7 +426,7 @@ async function loadIconTextures(map, maxAniso){
       tex.generateMipmaps = true;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
       tex.magFilter = THREE.LinearFilter;
-      tex.anisotropy = Math.max(1, maxAniso || 4);
+      tex.anisotropy = Math.max(1, MAX_ANISO);
       out[cid] = tex;
     }catch(e){
       console.warn('Flat SVG texture hiba:', path, e);
@@ -446,12 +438,10 @@ async function loadIconTextures(map, maxAniso){
   return out;
 }
 
-// =====================
-// ISO (3D) – NINCS SZŰRÉS
-// =====================
+// ========== ISO (3D) – SZŰRÉS NÉLKÜL, EXTRUDE ==========
 function sanitizeSvg(text){
   // gradient/filter url(#...) → egyszerű szín; defs kidobása
-  return text.replace(/url\\(\\s*#.*?\\)/gi, '#999').replace(/<defs[\\s\\S]*?<\\/defs>/gi, '');
+  return text.replace(/url\(\s*#.*?\)/gi, '#999').replace(/<defs[\s\S]*?<\/defs>/gi, '');
 }
 async function loadIsoGeomsNoFilter(map){
   const loader = new SVGLoader();
@@ -470,7 +460,7 @@ async function loadIsoGeomsNoFilter(map){
 
       const geoms = items.map(it => new THREE.ExtrudeGeometry(it.shape, { depth:0.30, bevelEnabled:false }));
       let geom = mergeGeometries(geoms, true);
-      geom.center();
+      geom.center(); // kényelmesebb skálázni/igazítani
       out[cid] = geom;
     }catch(e){
       console.warn('ISO SVG parse hiba, fallback:', map[cid], e);
@@ -480,9 +470,7 @@ async function loadIsoGeomsNoFilter(map){
   return out;
 }
 
-// =====================
-// LEGENDA + SZŰRŐ
-// =====================
+// ========== LEGENDA + SZŰRŐ ==========
 function buildLegend(){
   const box = document.getElementById('legend'); if (!box) return;
   box.innerHTML = '';
@@ -527,9 +515,7 @@ function applyFilter(){
   }
 }
 
-// =====================
-// KAMERA / FIT
-// =====================
+// ========== KAMERA / FIT ==========
 function computeNationView(obj, camera, offset=FIT_OFFSET){
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
@@ -576,19 +562,7 @@ function flyToBox(box, offset=1.10, duration=900){
   fly = { t:0, dur:duration, from: camera.position.clone(), to: toPos, fromT: controls.target.clone(), toT: center.clone() };
 }
 
-// =====================
-// 2D ↔ 3D váltás (pixel alapú)
-// =====================
-function worldPerPixelAt(dist){
-  const vFOV = THREE.MathUtils.degToRad(camera.fov);
-  return 2*Math.tan(vFOV/2)*dist / innerHeight; // world egység / px
-}
-function shouldShowIso(node){
-  const d = camera.position.distanceTo(node.position);
-  const wpp = worldPerPixelAt(d);
-  const sidePx = Math.min(node.userData.maskW || 0, node.userData.maskH || 0) / Math.max(1e-9, wpp);
-  return sidePx >= ISO_SWITCH_PX;
-}
+// ========== „FÖLDBŐL KINÖVÉS” ANIM segédek ==========
 function startGrowAnim(mesh, dur = GROW_DURATION, delay = 0){
   if (!mesh) return;
   const to = mesh.userData.fullScaleZ ?? mesh.scale.z ?? 1;
@@ -599,13 +573,17 @@ function easeOutBack(t){
   const c1 = 1.70158, c3 = c1 + 1;
   return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2);
 }
+
+// ========== VÁLTÁS 2D↔3D ==========
 function showIso(name, reanimate=false){
   const n = iconByKey[name]; if (!n) return;
   const firstTime = (n.userData.mode !== 'iso');
   if (!firstTime && !reanimate) return;
+
   if (n.userData.sprite) n.userData.sprite.visible = false;
   if (n.userData.mesh){
     n.userData.mesh.visible = true;
+    // első ISO váltáskor, vagy reanimate kérésekor indítsuk a kinövést
     startGrowAnim(n.userData.mesh, GROW_DURATION, Math.random()*120);
   }
   n.userData.mode = 'iso';
@@ -616,15 +594,14 @@ function showFlat(name){
   if (n.userData.mesh){
     n.userData.mesh.visible = false;
     if (n.userData.mesh.userData._grow) delete n.userData.mesh.userData._grow;
+    // álljon vissza a végső Z-re, hogy legközelebb 0-ról tudjon indulni
     n.userData.mesh.scale.z = n.userData.mesh.userData.fullScaleZ ?? n.userData.mesh.scale.z;
   }
   if (n.userData.sprite) n.userData.sprite.visible = true;
   n.userData.mode = 'flat';
 }
 
-// =====================
-// INTERAKCIÓ
-// =====================
+// ========== INTERAKCIÓ ==========
 renderer.domElement.addEventListener('click', onClick);
 function onClick(){
   raycaster.setFromCamera(mouse, camera);
@@ -696,5 +673,151 @@ function closePanel(){
 }
 window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
 
-// =====================
-— END OF FILE —
+// ========== ALIAS + CSV ==========
+function prettifyFeature(s){
+  if (!s) return '–';
+  const k = s.trim(); const alias = ALIAS?.[k];
+  if (alias) return alias;
+  return k.replace(/_/g,' ').replace(/\s+/g,' ').trim();
+}
+async function loadAlias(path){ try { const r=await fetch(path); if(!r.ok) return {}; return await r.json(); } catch{ return {}; } }
+async function loadMeta(path){ try{ const t=await (await fetch(path)).text(); return parseCSVToMap(t); } catch{ return new Map(); } }
+function parseCSVToMap(text){
+  const firstLine = text.split(/\r?\n/).find(l=>l.trim().length>0) || '';
+  const cand = [',',';','\t','|']; let d = ',', best = 0;
+  for (const c of cand){ const n = firstLine.split(c).length; if (n>best){best=n; d=c;} }
+  const lines = text.trim().split(/\r?\n/).filter(Boolean); if (!lines.length) return new Map();
+  const header = lines.shift().split(d).map(x=>x.trim().replace(/^"|"$/g,''));
+  const idx = (rxs) => header.findIndex(h=> rxs.some(rx => rx.test(h.toLowerCase())));
+  const nameIdx = idx([/name/,/járás/,/jaras/,/district/]); 
+  const silIdx  = idx([/sil/,/s_local/,/silhouette/,/^\s*s\s*$/]);
+  const topCols = header.map((h,i)=>({h,i})).filter(o=>/^top\d+/i.test(o.h)||/top.*feat/.test(o.h.toLowerCase())).map(o=>o.i);
+  const topStrIdx = idx([/top.*features?/]);
+  const map = new Map();
+  for(const line of lines){
+    const cells = line.split(d).map(c=>c.trim().replace(/^"|"$/g,''));
+    const name = cells[(nameIdx>=0?nameIdx:0)] || ''; if(!name) continue;
+    let s = null;
+    if (silIdx>=0){ const v = cells[silIdx]?.replace(',','.'); const num = parseFloat(v); if (isFinite(num)) s = num; }
+    let tops = [];
+    if (topStrIdx>=0 && cells[topStrIdx]) tops = cells[topStrIdx].split(/[;|,]/).map(x=>x.trim()).filter(Boolean).slice(0,3);
+    else if (topCols.length) tops = topCols.map(i=>cells[i]).filter(Boolean).slice(0,3);
+    map.set(name, {s, tops});
+  }
+  return map;
+}
+
+// ========== LOOP ==========
+function easeInOutQuad(t){ return t<.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+let last = performance.now();
+function animate(){
+  const now = performance.now(), dt = now - last; last = now;
+  controls.update();
+
+  if (fly){
+    fly.t += dt;
+    const a = Math.min(1, fly.t / fly.dur);
+    const k = easeInOutQuad(a);
+    camera.position.lerpVectors(fly.from, fly.to, k);
+    const target = new THREE.Vector3().lerpVectors(fly.fromT, fly.toT, k);
+    controls.target.copy(target); controls.update();
+    if (a>=1) fly = null;
+  }
+
+  const dCam = camera.position.distanceTo(controls.target);
+
+  // Panel nyitva → mindig 3D
+  if (detailLock) {
+    if (lastIsoKey && lastIsoKey !== detailLock) showFlat(lastIsoKey);
+    showIso(detailLock);
+    lastIsoKey = detailLock;
+
+  } else if (activeKey) {
+    // Hover esetén marad a távolság-küszöb
+    if (dCam < ISO_SWITCH_DISTANCE) {
+      if (lastIsoKey && lastIsoKey !== activeKey) showFlat(lastIsoKey);
+      showIso(activeKey);
+      lastIsoKey = activeKey;
+    } else {
+      if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
+    }
+
+  } else {
+    if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
+  }
+
+  // "grow/shrink" anim (hover/lock) – XY skála
+  for (const n of iconNodes){
+    const key = n.userData.key;
+    const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
+    n.userData.t = shouldGrow ? 1.35 : 1.0;
+    n.userData.s = THREE.MathUtils.lerp(n.userData.s ?? 1, n.userData.t, 0.12);
+    const s = n.userData.s;
+    n.scale.set(s, s, s);
+  }
+
+  // 3D ikon "kinövés" – Z skála
+  for (const n of iconNodes){
+    const m = n.userData.mesh;
+    const g = m?.userData?._grow;
+    if (m && m.visible && g){
+      const dtRel = now - g.t0;
+      if (dtRel >= 0){
+        const a = Math.min(1, dtRel / g.dur);
+        const k = easeOutBack(a);
+        m.scale.z = THREE.MathUtils.lerp(g.from, g.to, k);
+        if (a >= 1) delete m.userData._grow;
+      }
+    }
+  }
+
+  // 2D ikon px-alapú fallback (ha nem volt bbox – elvileg most mindig van)
+  const vFOV = THREE.MathUtils.degToRad(camera.fov);
+  const worldPerPixel = (dist)=> 2*Math.tan(vFOV/2)*dist / innerHeight;
+  for (const n of iconNodes){
+    if (n.userData.sprite?.visible && !(n.userData.maskW && n.userData.maskH)){
+      const d = camera.position.distanceTo(n.position);
+      const h = worldPerPixel(d) * SPRITE_PX;
+      const asp = n.userData.asp || 1;
+      n.userData.sprite.scale.set(h*asp, h, 1);
+    }
+  }
+
+  // hover
+  const hoverEnabled = !detailLock;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(fillsGroup.children, true);
+
+  if (hoverEnabled && hits.length){
+    const fill = hits[0].object;
+    activeKey = fill.userData.key;
+    renderer.domElement.style.cursor = 'pointer';
+
+    fillsGroup.children.forEach(m=>{
+      const isActive = m.userData.key === activeKey;
+      m.material.opacity = isActive ? 0.45 : m.userData.baseOpacity;
+    });
+
+    const n = iconByKey[activeKey];
+    tooltip.style.display='block';
+    tooltip.style.left = (pointerX+12)+'px';
+    tooltip.style.top  = (pointerY+12)+'px';
+    tooltip.textContent = n ? n.userData.label : (fill.userData.key ?? '—');
+
+  } else {
+    tooltip.style.display='none';
+    renderer.domElement.style.cursor = 'default';
+    if (!detailLock){
+      activeKey = null;
+      fillsGroup.children.forEach(m=> m.material.opacity = m.userData.baseOpacity);
+    } else {
+      fillsGroup.children.forEach(m=>{
+        const locked = (m.userData.key === detailLock);
+        m.material.opacity = locked ? 0.45 : m.userData.baseOpacity;
+      });
+    }
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
