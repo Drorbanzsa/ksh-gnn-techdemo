@@ -1,10 +1,8 @@
-// ====== THREE.js modulok CDN-ről (GitHub Pages / bundler nélkül is működik) ======
-import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
-import { OrbitControls }  from 'https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js';
-import { SVGLoader }      from 'https://unpkg.com/three@0.168.0/examples/jsm/loaders/SVGLoader.js';
-import { mergeGeometries } from 'https://unpkg.com/three@0.168.0/examples/jsm/utils/BufferGeometryUtils.js';
 
-// Helyi segédfájl
+import * as THREE from 'three';
+import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { SVGLoader }      from 'three/addons/loaders/SVGLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
 // --- elérési utak
@@ -38,11 +36,8 @@ function lonLatOfFeature(f){
 const ICON_SCALE_XY = 0.006;
 const ICON_SCALE_Z  = 0.003;
 const SPRITE_PX = 36;                  // ha nincs bbox, px alapú fallback
-const ISO_SWITCH_DISTANCE = 12;        // ez alatt 3D-re vált (hover eset)
+const ISO_SWITCH_DISTANCE = 12;         // ez alatt 3D-re vált
 const FIT_OFFSET = 1.01;
-
-// --- „földből kinövés” animáció paraméter
-const GROW_DURATION = 650; // ms
 
 // ========== SCENE ==========
 const scene = new THREE.Scene();
@@ -55,8 +50,6 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, stencil:true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
-
-const MAX_ANISO = renderer.capabilities.getMaxAnisotropy?.() ?? 4;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
@@ -225,7 +218,7 @@ async function init(){
     loadMeta(SIL_PATH).catch(()=>new Map()),
     loadAlias(ALIAS_PATH).catch(()=> ({})),
     loadIconTextures(ICONS_ABS),
-    loadIsoGeomsNoFilter(ICONS_ISO_ABS), // ← fontos: NINCS szűrés
+    loadIsoGeomsFiltered(ICONS_ISO_ABS),
   ]);
 
   GEO = geo; META = meta; ALIAS = alias;
@@ -233,118 +226,117 @@ async function init(){
   drawFills(GEO, fillsGroup);
   drawBorders(GEO, bordersGrp);
 
-  for (const f of GEO.features){
-    const cid  = f.properties.cluster;
-    const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
+for (const f of GEO.features){
+  const cid  = f.properties.cluster;
+  const name = f.properties.NAME || `id_${Math.random().toString(36).slice(2)}`;
 
-    // szülő node a járás középpontján
-    const node = new THREE.Object3D();
-    const [lon,lat] = lonLatOfFeature(f);
-    const [X,Y,Z]   = toXY(lon, lat, 0);
-    node.position.set(X,Y,Z);
+  // szülő node a járás középpontján
+  const node = new THREE.Object3D();
+  const [lon,lat] = lonLatOfFeature(f);
+  const [X,Y,Z]   = toXY(lon, lat, 0);
+  node.position.set(X,Y,Z);
 
-    // egyedi stencil referencia ehhez a járáshoz
-    const stRef = (ST_REF % 255) + 1; ST_REF++;
+  // egyedi stencil referencia ehhez a járáshoz
+  const stRef = (ST_REF % 255) + 1; ST_REF++;
 
-    // maszkoló geometria (LOKÁLIS!) és anyag
-    const maskGeom = makeMaskGeometry(f, X, Y);
-    const maskMat  = new THREE.MeshBasicMaterial({ color:0x000000 });
-    maskMat.colorWrite   = false;      // láthatatlan, de opák passzban rajzol
-    maskMat.transparent  = false;
-    maskMat.opacity      = 1.0;
-    maskMat.depthWrite   = false;
-    maskMat.depthTest    = false;                 // biztosan írjon a stencilbe
-    maskMat.stencilWrite = true;
-    maskMat.stencilRef   = stRef;
-    maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
-    maskMat.stencilZPass = THREE.ReplaceStencilOp;
+  // maszkoló geometria (LOKÁLIS!) és anyag
+  const maskGeom = makeMaskGeometry(f, X, Y);
+  const maskMat  = new THREE.MeshBasicMaterial({ color:0x000000 });
+  maskMat.colorWrite   = false;      // ettől lesz "láthatatlan"
+  maskMat.transparent  = false;      // OPÁK passzba kerüljön
+  maskMat.opacity      = 1.0;        // mindegy, colorWrite=false mellett
+  maskMat.depthWrite   = false;
+  maskMat.depthTest    = false;                 // biztosan írjon a stencilbe
+  maskMat.stencilWrite = true;
+  maskMat.stencilRef   = stRef;
+  maskMat.stencilFunc  = THREE.AlwaysStencilFunc;
+  maskMat.stencilZPass = THREE.ReplaceStencilOp;
 
-    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
-    node.add(maskMesh);
+  const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+  node.add(maskMesh);
 
-    // stabil, egymáshoz képest fix rajzolási sorrend: maszk -> 2D -> 3D
-    // (minden járás külön "sávot" kap)
-    const baseOrder = 1000 + ORDER * 3;
-    ORDER++;
-    maskMesh.renderOrder = baseOrder;
+  // stabil, egymáshoz képest fix rajzolási sorrend: maszk -> 2D -> 3D
+  // (minden járás külön "sávot" kap)
+  const baseOrder = 1000 + ORDER * 3;
+  ORDER++;                                  // <<< EZ HIÁNYZOTT
+  maskMesh.renderOrder = baseOrder;
 
-    // bbox a járásról (lokális) -> 2D/3D illesztés
-    maskGeom.computeBoundingBox();
-    const mb = maskGeom.boundingBox;
-    const maskW = (mb.max.x - mb.min.x);
-    const maskH = (mb.max.y - mb.min.y);
+  // bbox a járásról (lokális) -> 2D/3D illesztés
+  maskGeom.computeBoundingBox();
+  const mb = maskGeom.boundingBox;
+  const maskW = (mb.max.x - mb.min.x);
+  const maskH = (mb.max.y - mb.min.y);
 
-    // ---------- 2D: „flat” ikon (textúrázott sík), maszkkal kivágva ----------
-    const tex = flatTextures[cid];
-    const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
+  // ---------- 2D: „flat” ikon (textúrázott sík), maszkkal kivágva ----------
+  const tex = flatTextures[cid];
+  const asp = (tex?.image?.width && tex?.image?.height) ? (tex.image.width/tex.image.height) : 1;
 
-    const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
-    pmaterial.depthTest    = false;            // renderOrder döntsön
-    pmaterial.stencilWrite = true;
-    pmaterial.stencilRef   = stRef;
-    pmaterial.stencilFunc  = THREE.EqualStencilFunc;
-    pmaterial.stencilZPass = THREE.KeepStencilOp;
+  const pmaterial = new THREE.MeshBasicMaterial({ map: tex, transparent:true, depthWrite:false });
+  pmaterial.depthTest    = false;            // renderOrder döntsön
+  pmaterial.stencilWrite = true;
+  pmaterial.stencilRef   = stRef;
+  pmaterial.stencilFunc  = THREE.EqualStencilFunc;
+  pmaterial.stencilZPass = THREE.KeepStencilOp;
 
-    // illesztés a járás bbox-ába, kis paddal
-    const pad = 0.88;
-    let pw = maskW*pad, ph = maskH*pad;
-    if (pw/ph > asp) { ph = maskH*pad; pw = ph*asp; } else { pw = maskW*pad; ph = pw/asp; }
+  // illesztés a járás bbox-ába, kis paddal
+  const pad = 0.88;
+  let pw = maskW*pad, ph = maskH*pad;
+  if (pw/ph > asp) { ph = maskH*pad; pw = ph*asp; } else { pw = maskW*pad; ph = pw/asp; }
 
-    const pgeom = new THREE.PlaneGeometry(pw, ph);
-    const pmesh = new THREE.Mesh(pgeom, pmaterial);
-    pmesh.position.z  = 0.0008;                 // maszk fölé hajszálnyival
-    pmesh.renderOrder = baseOrder + 1;          // maszk után
+  const pgeom = new THREE.PlaneGeometry(pw, ph);
+  const pmesh = new THREE.Mesh(pgeom, pmaterial);
+  pmesh.position.z  = 0.0008;                 // maszk fölé hajszálnyival
+  pmesh.renderOrder = baseOrder + 1;          // maszk után
 
-    node.add(pmesh);
+  node.add(pmesh);
 
-    // ---------- 3D: „iso” ikon, maszkkal kivágva ----------
-    const geom3D = isoGeoms[cid] || new THREE.CylinderGeometry(0.4, 0.4, 0.08, 24);
-    const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888, flatShading:true });
-    mmat.stencilWrite = true;
-    mmat.stencilRef   = stRef;
-    mmat.stencilFunc  = THREE.EqualStencilFunc;
-    mmat.stencilZPass = THREE.KeepStencilOp;
+  // ---------- 3D: „iso” ikon, maszkkal kivágva ----------
+  const geom3D = isoGeoms[cid];
+  const mmat   = new THREE.MeshStandardMaterial({ color: CLUSTER_COLORS[cid] || 0x888888 });
+  mmat.stencilWrite = true;
+  mmat.stencilRef   = stRef;
+  mmat.stencilFunc  = THREE.EqualStencilFunc;
+  mmat.stencilZPass = THREE.KeepStencilOp;
 
-    const mesh3D = new THREE.Mesh(geom3D, mmat);
-    mesh3D.renderOrder = baseOrder + 2;
+  const mesh3D = new THREE.Mesh(geom3D, mmat);
+  mesh3D.renderOrder = baseOrder + 2;  // <<< EZ HIÁNYZOTT
 
-    // skálázás: a járás rövidebb oldalának ~55%-ára
-    geom3D.computeBoundingBox();
-    const gb   = geom3D.boundingBox;
-    const gW   = (gb.max.x - gb.min.x);
-    const gH   = (gb.max.y - gb.min.y);
-    const gMax = Math.max(1e-6, gW, gH);
+  // skálázás: a járás rövidebb oldalának ~55%-ára
+  geom3D.computeBoundingBox();
+  const gb   = geom3D.boundingBox;
+  const gW   = (gb.max.x - gb.min.x);
+  const gH   = (gb.max.y - gb.min.y);
+  const gMax = Math.max(1e-6, gW, gH);
 
-    const target = Math.min(maskW, maskH) * 0.55;
-    const s      = target / gMax;
-    const rz     = ICON_SCALE_Z / ICON_SCALE_XY;   // a kívánt Z/XY arány
+  const target = Math.min(maskW, maskH) * 0.55;
+  const s      = target / gMax;
+  const rz     = ICON_SCALE_Z / ICON_SCALE_XY;   // a kívánt Z/XY arány
 
-    // XY végleges, Z „földben” indul → animálva nő
-    mesh3D.userData.fullScaleZ = s * rz;
-    mesh3D.scale.set(s, s, 0.0001);
-    mesh3D.position.z  = 0.02;                 // a sík fölé
-    mesh3D.visible     = false;                // zoomnál / panelnél kapcsoljuk
+  mesh3D.scale.set(s, s, s*rz);
+  mesh3D.position.z  = 0.02;                 // a sík fölé
+  mesh3D.visible     = false;                // zoomnál kapcsoljuk
 
-    node.add(mesh3D);
+  node.add(mesh3D);
 
-    // ---------- meta ----------
-    node.userData = {
-      key: name,
-      cluster: cid,
-      label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
-      s: 1, t: 1, mode:'flat',
-      sprite: pmesh,            // a meglévő kód „sprite”-ként kezeli
-      mesh:   mesh3D,
-      asp,
-      stRef,
-      maskW, maskH
-    };
+  // ---------- meta ----------
+  node.userData = {
+    key: name,
+    cluster: cid,
+    label: `${name} · ${CLUSTER_LABELS[cid] ?? ('C'+cid)}`,
+    s: 1, t: 1, mode:'flat',
+    sprite: pmesh,            // így a meglévő kód „sprite”-ként kezeli
+    mesh:   mesh3D,
+    asp,
+    stRef,
+    maskW, maskH
+  };
 
-    iconsGroup.add(node);
-    iconByKey[name] = node;
-    iconNodes.push(node);
-    ORDER++;
-  }
+  iconsGroup.add(node);
+  iconByKey[name] = node;
+  iconNodes.push(node);
+  ORDER++;
+}
+
 
   buildLegend(); 
   applyFilter();
@@ -426,7 +418,7 @@ async function loadIconTextures(map){
       tex.generateMipmaps = true;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
       tex.magFilter = THREE.LinearFilter;
-      tex.anisotropy = Math.max(1, MAX_ANISO);
+      tex.anisotropy = 4;
       out[cid] = tex;
     }catch(e){
       console.warn('Flat SVG texture hiba:', path, e);
@@ -438,12 +430,32 @@ async function loadIconTextures(map){
   return out;
 }
 
-// ========== ISO (3D) – SZŰRÉS NÉLKÜL, EXTRUDE ==========
+// ========== ISO (3D) – háttérszűrés + extrude ==========
 function sanitizeSvg(text){
   // gradient/filter url(#...) → egyszerű szín; defs kidobása
   return text.replace(/url\(\s*#.*?\)/gi, '#999').replace(/<defs[\s\S]*?<\/defs>/gi, '');
 }
-async function loadIsoGeomsNoFilter(map){
+function parseHex(c){
+  if (!c || typeof c!=='string') return null;
+  const m3 = c.match(/^#([0-9a-f]{3})$/i);
+  const m6 = c.match(/^#([0-9a-f]{6})$/i);
+  if (m3){ const n=m3[1]; return {r:parseInt(n[0]+n[0],16), g:parseInt(n[1]+n[1],16), b:parseInt(n[2]+n[2],16)}; }
+  if (m6){ const n=m6[1]; return {r:parseInt(n.slice(0,2),16), g:parseInt(n.slice(2,4),16), b:parseInt(n.slice(4,6),16)}; }
+  const rgb = c.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+  if (rgb) return { r:+rgb[1], g:+rgb[2], b:+rgb[3] };
+  return null;
+}
+function isVeryLight(fill){
+  const col = parseHex(fill);
+  return !!col && col.r>230 && col.g>230 && col.b>230;
+}
+function boundsOfShape(shape){
+  const pts = shape.getPoints(8);
+  let minX=+Infinity,minY=+Infinity,maxX=-Infinity,maxY=-Infinity;
+  for (const p of pts){ if (p.x<minX) minX=p.x; if (p.y<minY) minY=p.y; if (p.x>maxX) maxX=p.x; if (p.y>maxY) maxY=p.y; }
+  return {minX,minY,maxX,maxY, w:maxX-minX, h:maxY-minY};
+}
+async function loadIsoGeomsFiltered(map){
   const loader = new SVGLoader();
   const out = {};
   for (const [cid, path] of Object.entries(map)){
@@ -454,13 +466,31 @@ async function loadIsoGeomsNoFilter(map){
 
       const items = [];
       for (const p of paths){
+        const fill = p?.userData?.style?.fill || p?.userData?.style?.stroke || '#999';
         const shs = SVGLoader.createShapes(p);
-        for (const s of shs) items.push({shape:s});
+        for (const s of shs) items.push({shape:s, fill});
       }
 
-      const geoms = items.map(it => new THREE.ExtrudeGeometry(it.shape, { depth:0.30, bevelEnabled:false }));
+      // teljes bounding
+      let U=null;
+      for (const it of items){
+        const b = boundsOfShape(it.shape);
+        if (!U) U={minX:b.minX,minY:b.minY,maxX:b.maxX,maxY:b.maxY};
+        else { U.minX=Math.min(U.minX,b.minX); U.minY=Math.min(U.minY,b.minY); U.maxX=Math.max(U.maxX,b.maxX); U.maxY=Math.max(U.maxY,b.maxY); }
+      }
+      const Uw = (U?.maxX??1)-(U?.minX??0), Uh = (U?.maxY??1)-(U?.minY??0);
+
+      // nagyon világos / túl nagy háttér szűrése
+      const filtered = items.filter(it=>{
+        const b = boundsOfShape(it.shape);
+        const huge = Uw>0 && Uh>0 && ((b.w>=0.80*Uw && b.h>=0.80*Uh) || b.w>=0.92*Uw || b.h>=0.92*Uh);
+        return !huge && !isVeryLight(it.fill);
+      });
+
+      const parts = filtered.length ? filtered : items;
+      const geoms = parts.map(it => new THREE.ExtrudeGeometry(it.shape, { depth:0.18, bevelEnabled:false }));
       let geom = mergeGeometries(geoms, true);
-      geom.center(); // kényelmesebb skálázni/igazítani
+      geom.center();
       out[cid] = geom;
     }catch(e){
       console.warn('ISO SVG parse hiba, fallback:', map[cid], e);
@@ -562,41 +592,18 @@ function flyToBox(box, offset=1.10, duration=900){
   fly = { t:0, dur:duration, from: camera.position.clone(), to: toPos, fromT: controls.target.clone(), toT: center.clone() };
 }
 
-// ========== „FÖLDBŐL KINÖVÉS” ANIM segédek ==========
-function startGrowAnim(mesh, dur = GROW_DURATION, delay = 0){
-  if (!mesh) return;
-  const to = mesh.userData.fullScaleZ ?? mesh.scale.z ?? 1;
-  mesh.userData._grow = { t0: performance.now() + delay, dur, from: 0.0001, to };
-  mesh.scale.z = 0.0001; // "földben" indul
-}
-function easeOutBack(t){
-  const c1 = 1.70158, c3 = c1 + 1;
-  return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2);
-}
-
 // ========== VÁLTÁS 2D↔3D ==========
-function showIso(name, reanimate=false){
+function showIso(name){
   const n = iconByKey[name]; if (!n) return;
-  const firstTime = (n.userData.mode !== 'iso');
-  if (!firstTime && !reanimate) return;
-
+  if (n.userData.mode === 'iso') return;
   if (n.userData.sprite) n.userData.sprite.visible = false;
-  if (n.userData.mesh){
-    n.userData.mesh.visible = true;
-    // első ISO váltáskor, vagy reanimate kérésekor indítsuk a kinövést
-    startGrowAnim(n.userData.mesh, GROW_DURATION, Math.random()*120);
-  }
+  if (n.userData.mesh)   n.userData.mesh.visible   = true;
   n.userData.mode = 'iso';
 }
 function showFlat(name){
   const n = iconByKey[name]; if (!n) return;
   if (n.userData.mode === 'flat') return;
-  if (n.userData.mesh){
-    n.userData.mesh.visible = false;
-    if (n.userData.mesh.userData._grow) delete n.userData.mesh.userData._grow;
-    // álljon vissza a végső Z-re, hogy legközelebb 0-ról tudjon indulni
-    n.userData.mesh.scale.z = n.userData.mesh.userData.fullScaleZ ?? n.userData.mesh.scale.z;
-  }
+  if (n.userData.mesh)   n.userData.mesh.visible   = false;
   if (n.userData.sprite) n.userData.sprite.visible = true;
   n.userData.mode = 'flat';
 }
@@ -624,7 +631,7 @@ function openPanel(name, fillObj){
     m.material.opacity = (m.userData.key === name) ? 0.45 : m.userData.baseOpacity;
   });
 
-  showIso(name, true); // panelnyitáskor mindig reanimate
+  showIso(name);
   const box = new THREE.Box3().setFromObject(fillObj);
   lockTilt(false); flyToBox(box, 1.05, 900);
 
@@ -724,29 +731,30 @@ function animate(){
     if (a>=1) fly = null;
   }
 
-  const dCam = camera.position.distanceTo(controls.target);
+const dCam = camera.position.distanceTo(controls.target);
 
-  // Panel nyitva → mindig 3D
-  if (detailLock) {
-    if (lastIsoKey && lastIsoKey !== detailLock) showFlat(lastIsoKey);
-    showIso(detailLock);
-    lastIsoKey = detailLock;
+// Panel nyitva → mindig 3D
+if (detailLock) {
+  if (lastIsoKey && lastIsoKey !== detailLock) showFlat(lastIsoKey);
+  showIso(detailLock);
+  lastIsoKey = detailLock;
 
-  } else if (activeKey) {
-    // Hover esetén marad a távolság-küszöb
-    if (dCam < ISO_SWITCH_DISTANCE) {
-      if (lastIsoKey && lastIsoKey !== activeKey) showFlat(lastIsoKey);
-      showIso(activeKey);
-      lastIsoKey = activeKey;
-    } else {
-      if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
-    }
-
+} else if (activeKey) {
+  // Hover esetén marad a távolság-küszöb
+  if (dCam < ISO_SWITCH_DISTANCE) {
+    if (lastIsoKey && lastIsoKey !== activeKey) showFlat(lastIsoKey);
+    showIso(activeKey);
+    lastIsoKey = activeKey;
   } else {
     if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
   }
 
-  // "grow/shrink" anim (hover/lock) – XY skála
+} else {
+  if (lastIsoKey) { showFlat(lastIsoKey); lastIsoKey = null; }
+}
+
+
+  // "grow/shrink" anim (hover/lock)
   for (const n of iconNodes){
     const key = n.userData.key;
     const shouldGrow = detailLock ? (key===detailLock) : (key===activeKey);
@@ -756,22 +764,7 @@ function animate(){
     n.scale.set(s, s, s);
   }
 
-  // 3D ikon "kinövés" – Z skála
-  for (const n of iconNodes){
-    const m = n.userData.mesh;
-    const g = m?.userData?._grow;
-    if (m && m.visible && g){
-      const dtRel = now - g.t0;
-      if (dtRel >= 0){
-        const a = Math.min(1, dtRel / g.dur);
-        const k = easeOutBack(a);
-        m.scale.z = THREE.MathUtils.lerp(g.from, g.to, k);
-        if (a >= 1) delete m.userData._grow;
-      }
-    }
-  }
-
-  // 2D ikon px-alapú fallback (ha nem volt bbox – elvileg most mindig van)
+  // 2D ikon px‑alapú fallback (ha nem volt bbox – elvileg most mindig van)
   const vFOV = THREE.MathUtils.degToRad(camera.fov);
   const worldPerPixel = (dist)=> 2*Math.tan(vFOV/2)*dist / innerHeight;
   for (const n of iconNodes){
