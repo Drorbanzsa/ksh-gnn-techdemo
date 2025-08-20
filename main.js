@@ -733,79 +733,66 @@ function parseCSVToMap(text){
 }
 
 // =====================
-// DÖNTÉSFÁS LIGHTBOX (zoom + pan)
+// DÖNTÉSFÁS LIGHTBOX (zoom + pan) – sorrendfüggetlen, closure-rel
 // =====================
-let ZL = null;
-function ensureZoomLightbox(){
-  if (ZL) return ZL;
+const ensureZoomLightbox = (() => {
 
-  const overlay = document.createElement('div'); overlay.id='zl-overlay';
-  const box = document.createElement('div'); box.id='zl-box';
-  const toolbar = document.createElement('div'); toolbar.id='zl-toolbar';
-  const btnPlus  = document.createElement('button'); btnPlus.textContent = '+';
-  const btnMinus = document.createElement('button'); btnMinus.textContent = '–';
-  const btnReset = document.createElement('button'); btnReset.textContent = 'Reset';
-  const btnClose = document.createElement('button'); btnClose.textContent = '✕';
 
-  toolbar.append(btnPlus, btnMinus, btnReset, btnClose);
-  const canvas = document.createElement('div'); canvas.id='zl-canvas';
-  const img = document.createElement('img'); img.id='zl-img'; img.draggable=false;
-  canvas.appendChild(img);
+  return function ensureZoomLightbox() {
+    if (ZL) return ZL;
 
-  box.append(toolbar, canvas);
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
+    const overlay = document.createElement('div'); overlay.id='zl-overlay';
+    const box = document.createElement('div'); box.id='zl-box';
+    const toolbar = document.createElement('div'); toolbar.id='zl-toolbar';
+    const btnPlus  = document.createElement('button'); btnPlus.textContent = '+';
+    const btnMinus = document.createElement('button'); btnMinus.textContent = '–';
+    const btnReset = document.createElement('button'); btnReset.textContent = 'Reset';
+    const btnClose = document.createElement('button'); btnClose.textContent = '✕';
 
-  let scale=1, ox=0, oy=0, dragging=false, px=0, py=0;
+    toolbar.append(btnPlus, btnMinus, btnReset, btnClose);
+    const canvas = document.createElement('div'); canvas.id='zl-canvas';
+    const img = document.createElement('img'); img.id='zl-img'; img.draggable=false;
+    canvas.appendChild(img);
 
-  function layout(){
-    box.style.maxWidth = '92vw';
-    box.style.maxHeight = '86vh';
-    // középre pozicionálás CSS-ben megoldott
-    update();
-  }
-  function update(){
-    img.style.transform = `translate(${ox}px, ${oy}px) scale(${scale})`;
-  }
-  function setImage(src){
-    img.src = src;
-    scale = 1; ox = oy = 0; update();
-  }
-  function open(src){
-    setImage(src);
-    overlay.style.display='block';
-  }
-  function close(){ overlay.style.display='none'; }
+    box.append(toolbar, canvas);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
-  btnPlus.onclick  = ()=>{ scale = Math.min(5, scale*1.2); update(); };
-  btnMinus.onclick = ()=>{ scale = Math.max(0.2, scale/1.2); update(); };
-  btnReset.onclick = ()=>{ scale = 1; ox=oy=0; update(); };
-  btnClose.onclick = close;
-  overlay.addEventListener('click', (e)=>{ if (e.target===overlay) close(); });
+    let scale=1, ox=0, oy=0, dragging=false, px=0, py=0;
 
-  canvas.addEventListener('wheel', (e)=>{
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left - ox;
-    const my = e.clientY - rect.top  - oy;
-    const delta = Math.sign(e.deltaY) * -0.1;
-    const ns = THREE.MathUtils.clamp(scale*(1+delta), 0.2, 5);
-    // zoom a kurzor körül
-    ox -= (mx/ns - mx/scale);
-    oy -= (my/ns - my/scale);
-    scale = ns; update();
-  }, {passive:false});
+    function update(){ img.style.transform = `translate(${ox}px, ${oy}px) scale(${scale})`; }
+    function setImage(src){ img.src = src; scale = 1; ox = oy = 0; update(); }
+    function open(src){ setImage(src); overlay.style.display='block'; }
+    function close(){ overlay.style.display='none'; }
 
-  canvas.addEventListener('pointerdown', (e)=>{ dragging=true; canvas.classList.add('drag'); px=e.clientX; py=e.clientY; });
-  window.addEventListener('pointermove', (e)=>{ if(!dragging) return; ox += (e.clientX-px); oy += (e.clientY-py); px=e.clientX; py=e.clientY; update(); });
-  window.addEventListener('pointerup',   ()=>{ dragging=false; canvas.classList.remove('drag'); });
+    btnPlus.onclick  = ()=>{ scale = Math.min(5, scale*1.2); update(); };
+    btnMinus.onclick = ()=>{ scale = Math.max(0.2, scale/1.2); update(); };
+    btnReset.onclick = ()=>{ scale = 1; ox=oy=0; update(); };
+    btnClose.onclick = close;
+    overlay.addEventListener('click', (e)=>{ if (e.target===overlay) close(); });
 
-  window.addEventListener('resize', layout);
-  layout();
+    const onWheel = (e)=>{
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left - ox;
+      const my = e.clientY - rect.top  - oy;
+      const delta = Math.sign(e.deltaY) * -0.1;
+      const ns = THREE.MathUtils.clamp(scale*(1+delta), 0.2, 5);
+      ox -= (mx/ns - mx/scale);
+      oy -= (my/ns - my/scale);
+      scale = ns; update();
+    };
+    canvas.addEventListener('wheel', onWheel, {passive:false});
 
-  ZL = { open, close };
-  return ZL;
-}
+    canvas.addEventListener('pointerdown', (e)=>{ dragging=true; canvas.classList.add('drag'); px=e.clientX; py=e.clientY; });
+    window.addEventListener('pointermove', (e)=>{ if(!dragging) return; ox += (e.clientX-px); oy += (e.clientY-py); px=e.clientX; py=e.clientY; update(); });
+    window.addEventListener('pointerup',   ()=>{ dragging=false; canvas.classList.remove('drag'); });
+
+    ZL = { open, close };
+    return ZL;
+  };
+})();
+
 
 // =====================
 // LOOP
