@@ -1,6 +1,8 @@
-// ====== THREE.js modulok CDN-ről (egységes forrás, nincs duplikáció) ======
-import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
-import { OrbitControls }  from 'https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'three';
+import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { SVGLoader }      from 'three/addons/loaders/SVGLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
 
 // Helyi segédfájl
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
