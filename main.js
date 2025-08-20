@@ -5,11 +5,14 @@ import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
 // Helyi segédfájl
 import { CLUSTER_COLORS, ICON_FILES, CLUSTER_LABELS } from './colors.js';
 
+/* --- Lightbox globális állapota: IDE HOZZUK FEL, hogy a TDZ hibát elkerüljük --- */
+let ZL = null;
+
 // =====================
 // Beállítások
 // =====================
-const SPRITE_PX  = 36;      // 2D ikon px-alapú fallback méretezés
-const FIT_OFFSET = 1.01;    // kamera-fit padding
+const SPRITE_PX  = 36;
+const FIT_OFFSET = 1.01;
 
 // Klaszter-színezés stílusok / opacitások
 const OP_WEAK   = 0.28;     // halvány kitöltés (alap)
@@ -744,7 +747,7 @@ function parseCSVToMap(text){
 // =====================
 // LIGHTBOX – döntésfa nagyító (zoom + pan)
 // =====================
-let ZL = null;
+
 function ensureZoomLightboxUI(){
   if (document.getElementById('zl-wrap')) return;
 
