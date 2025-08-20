@@ -342,7 +342,7 @@ async function init(){
     pmaterial.stencilFunc  = THREE.EqualStencilFunc;
     pmaterial.stencilZPass = THREE.KeepStencilOp;
 
-    const pad = 0.88;
+    const pad = 0.60;
     let pw = maskW*pad, ph = maskH*pad;
     if (pw/ph > asp) { ph = maskH*pad; pw = ph*asp; } else { pw = maskW*pad; ph = pw/asp; }
 
