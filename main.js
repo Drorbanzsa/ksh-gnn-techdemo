@@ -733,66 +733,90 @@ function parseCSVToMap(text){
 }
 
 // =====================
-// DÖNTÉSFÁS LIGHTBOX (zoom + pan) – sorrendfüggetlen, closure-rel
+// DÖNTÉSFÁS LIGHTBOX (zoom + pan) – hoistolt, sorrendfüggetlen
 // =====================
-const ensureZoomLightbox = (() => {
+function ensureZoomLightbox() {
+  // Singleton azonos függvényen belül: nem kell külön 'let ZL'
+  if (ensureZoomLightbox._inst) return ensureZoomLightbox._inst;
 
+  // Stílus csak egyszer
+  if (!document.getElementById('zl-style')) {
+    const st = document.createElement('style');
+    st.id = 'zl-style';
+    st.textContent = `
+      #zl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:saturate(0.9) blur(2px);
+        z-index:2000;display:none;}
+      #zl-box{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        width:min(95vw,1400px);height:min(90vh,900px);background:#fff;border-radius:.7rem;
+        box-shadow:0 18px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;}
+      #zl-toolbar{display:flex;gap:.35rem;align-items:center;justify-content:flex-end;padding:.5rem .6rem;border-bottom:1px solid rgba(0,0,0,.08)}
+      #zl-toolbar button{border:1px solid rgba(0,0,0,.25);background:#fff;border-radius:.45rem;padding:.25rem .5rem;cursor:pointer}
+      #zl-canvas{position:relative;flex:1;overflow:hidden;background:#f7f7f7;cursor:grab}
+      #zl-canvas.drag{cursor:grabbing}
+      #zl-img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(1);transform-origin:center center;user-select:none;pointer-events:none;}
+      #zl-caption{position:absolute;left:12px;bottom:10px;background:rgba(0,0,0,.6);color:#fff;padding:.2rem .45rem;border-radius:.35rem;font:12px/1.2 system-ui}
+    `;
+    document.head.appendChild(st);
+  }
 
-  return function ensureZoomLightbox() {
-    if (ZL) return ZL;
+  // DOM elemek
+  const overlay = document.createElement('div'); overlay.id = 'zl-overlay';
+  const box     = document.createElement('div'); box.id = 'zl-box';
+  const toolbar = document.createElement('div'); toolbar.id = 'zl-toolbar';
+  const btnPlus  = document.createElement('button'); btnPlus.textContent  = '+';
+  const btnMinus = document.createElement('button'); btnMinus.textContent = '–';
+  const btnReset = document.createElement('button'); btnReset.textContent = 'Reset';
+  const btnClose = document.createElement('button'); btnClose.textContent = '✕';
+  toolbar.append(btnPlus, btnMinus, btnReset, btnClose);
 
-    const overlay = document.createElement('div'); overlay.id='zl-overlay';
-    const box = document.createElement('div'); box.id='zl-box';
-    const toolbar = document.createElement('div'); toolbar.id='zl-toolbar';
-    const btnPlus  = document.createElement('button'); btnPlus.textContent = '+';
-    const btnMinus = document.createElement('button'); btnMinus.textContent = '–';
-    const btnReset = document.createElement('button'); btnReset.textContent = 'Reset';
-    const btnClose = document.createElement('button'); btnClose.textContent = '✕';
+  const canvas  = document.createElement('div'); canvas.id = 'zl-canvas';
+  const img     = document.createElement('img'); img.id = 'zl-img'; img.draggable = false;
+  const caption = document.createElement('div'); caption.id='zl-caption'; caption.textContent='';
+  canvas.append(img, caption);
 
-    toolbar.append(btnPlus, btnMinus, btnReset, btnClose);
-    const canvas = document.createElement('div'); canvas.id='zl-canvas';
-    const img = document.createElement('img'); img.id='zl-img'; img.draggable=false;
-    canvas.appendChild(img);
+  box.append(toolbar, canvas);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 
-    box.append(toolbar, canvas);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+  // Állapot
+  let scale = 1, ox = 0, oy = 0, dragging = false, px = 0, py = 0;
 
-    let scale=1, ox=0, oy=0, dragging=false, px=0, py=0;
+  function update(){ img.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px)) scale(${scale})`; }
+  function setImage(src, cap=''){ img.src = src; caption.textContent = cap||''; scale = 1; ox = oy = 0; update(); }
+  function open(src, cap=''){ setImage(src, cap); overlay.style.display = 'block'; }
+  function close(){ overlay.style.display = 'none'; }
 
-    function update(){ img.style.transform = `translate(${ox}px, ${oy}px) scale(${scale})`; }
-    function setImage(src){ img.src = src; scale = 1; ox = oy = 0; update(); }
-    function open(src){ setImage(src); overlay.style.display='block'; }
-    function close(){ overlay.style.display='none'; }
+  // Gombok
+  btnPlus.onclick  = ()=>{ scale = Math.min(6, scale*1.2); update(); };
+  btnMinus.onclick = ()=>{ scale = Math.max(0.15, scale/1.2); update(); };
+  btnReset.onclick = ()=>{ scale = 1; ox = oy = 0; update(); };
+  btnClose.onclick = close;
+  overlay.addEventListener('click', (e)=>{ if (e.target === overlay) close(); });
 
-    btnPlus.onclick  = ()=>{ scale = Math.min(5, scale*1.2); update(); };
-    btnMinus.onclick = ()=>{ scale = Math.max(0.2, scale/1.2); update(); };
-    btnReset.onclick = ()=>{ scale = 1; ox=oy=0; update(); };
-    btnClose.onclick = close;
-    overlay.addEventListener('click', (e)=>{ if (e.target===overlay) close(); });
-
-    const onWheel = (e)=>{
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left - ox;
-      const my = e.clientY - rect.top  - oy;
-      const delta = Math.sign(e.deltaY) * -0.1;
-      const ns = THREE.MathUtils.clamp(scale*(1+delta), 0.2, 5);
+  // Zoom görgővel (kurzor körül)
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left - (rect.width  / 2) - ox;
+    const my = e.clientY - rect.top  - (rect.height / 2) - oy;
+    const k  = e.deltaY < 0 ? 1.1 : 1/1.1;
+    const ns = Math.max(0.15, Math.min(6, scale * k));
+    if (ns !== scale){
       ox -= (mx/ns - mx/scale);
       oy -= (my/ns - my/scale);
       scale = ns; update();
-    };
-    canvas.addEventListener('wheel', onWheel, {passive:false});
+    }
+  }, { passive:false });
 
-    canvas.addEventListener('pointerdown', (e)=>{ dragging=true; canvas.classList.add('drag'); px=e.clientX; py=e.clientY; });
-    window.addEventListener('pointermove', (e)=>{ if(!dragging) return; ox += (e.clientX-px); oy += (e.clientY-py); px=e.clientX; py=e.clientY; update(); });
-    window.addEventListener('pointerup',   ()=>{ dragging=false; canvas.classList.remove('drag'); });
+  // Pan (húzás)
+  canvas.addEventListener('pointerdown', (e)=>{ dragging = true; canvas.classList.add('drag'); px = e.clientX; py = e.clientY; });
+  window.addEventListener('pointermove', (e)=>{ if(!dragging) return; ox += (e.clientX - px); oy += (e.clientY - py); px = e.clientX; py = e.clientY; update(); });
+  window.addEventListener('pointerup',   ()=>{ dragging = false; canvas.classList.remove('drag'); });
 
-    ZL = { open, close };
-    return ZL;
-  };
-})();
-
+  // Singleton objektum visszaadása
+  ensureZoomLightbox._inst = { open, close, setImage };
+  return ensureZoomLightbox._inst;
+}
 
 // =====================
 // LOOP
